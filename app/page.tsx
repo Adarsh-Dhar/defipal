@@ -30,44 +30,58 @@ export default function Home() {
     setMessages((prev) => [...prev, userMessage])
     setIsTyping(true)
 
-    // TODO: Replace with actual AI API call
-    // const response = await fetchChatCompletion(content)
+    try {
+      // Prepare messages for API (excluding the initial greeting)
+      const apiMessages = messages
+        .filter(msg => msg.role !== "assistant" || msg.id !== "1")
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
+        .concat({
+          role: "user" as const,
+          content
+        })
 
-    // Simulate AI response delay
-    setTimeout(() => {
+      const response = await fetch('/api/llm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: apiMessages
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response')
+      }
+
+      const data = await response.json()
+      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: getSimulatedResponse(content),
+        content: data.content,
         role: "assistant",
         timestamp: new Date(),
       }
 
       setMessages((prev) => [...prev, assistantMessage])
+    } catch (error) {
+      console.error('Error getting AI response:', error)
+      
+      // Fallback response
+      const fallbackMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm having trouble connecting to my AI service right now. Please try again in a moment, or check your internet connection.",
+        role: "assistant",
+        timestamp: new Date(),
+      }
+      
+      setMessages((prev) => [...prev, fallbackMessage])
+    } finally {
       setIsTyping(false)
-    }, 1500)
-  }
-
-  // Simulated responses for demo purposes
-  const getSimulatedResponse = (input: string): string => {
-    const lowerInput = input.toLowerCase()
-
-    if (lowerInput.includes("swap") || lowerInput.includes("exchange")) {
-      return "I can help you swap tokens on Sonic! Please specify the amount and tokens you'd like to swap (e.g., '10 S for USDC'). I'll prepare the transaction for your approval."
     }
-
-    if (lowerInput.includes("balance")) {
-      return "I'll check your wallet balance. Please connect your wallet first, then I can show you your current token holdings across Sonic DeFi protocols."
-    }
-
-    if (lowerInput.includes("farm") || lowerInput.includes("yield")) {
-      return "Here are some safe farming opportunities on Sonic:\n\n• S-USDC LP: ~12% APY\n• S-ETH LP: ~15% APY\n• USDC Lending: ~8% APY\n\nWould you like me to help you start farming in any of these pools?"
-    }
-
-    if (lowerInput.includes("stake") || lowerInput.includes("staking")) {
-      return "I can help you stake your S tokens! Current staking rewards are ~18% APY. How much S would you like to stake?"
-    }
-
-    return "I understand you want to perform a DeFi operation. Could you be more specific? I can help with swapping, checking balances, farming, staking, and more on Sonic DeFi."
   }
 
   return (
