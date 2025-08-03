@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAccount } from 'wagmi'
 import { useSonicTransactions } from '@/hooks/useSonicTransactions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { 
   Wallet, 
   Coins, 
-  Bridge, 
+  Network, 
   Stethoscope, 
   Info, 
   CheckCircle, 
@@ -29,6 +30,8 @@ import {
 export function SonicTransactionDemo() {
   const [activeTab, setActiveTab] = useState('wallet')
   const [results, setResults] = useState<Record<string, any>>({})
+  
+  const { address, isConnected } = useAccount()
   
   const {
     loading,
@@ -56,11 +59,9 @@ export function SonicTransactionDemo() {
   } = useSonicTransactions()
 
   // Form states
-  const [walletAddress, setWalletAddress] = useState('0x742d35Cc6634C0532925a3b8D4C9db96590b5b8c')
   const [tokenAddress, setTokenAddress] = useState('0xA0b86a33E6441b6c4C8B8B8B8B8B8B8B8B8B8B8')
   const [recipientAddress, setRecipientAddress] = useState('0x1234567890123456789012345678901234567890')
   const [amount, setAmount] = useState('1.0')
-  const [privateKey, setPrivateKey] = useState('')
   const [txHash, setTxHash] = useState('')
   const [validatorId, setValidatorId] = useState('1')
   const [depositId, setDepositId] = useState('')
@@ -68,6 +69,14 @@ export function SonicTransactionDemo() {
   const [blockNumber, setBlockNumber] = useState('')
 
   const handleTransaction = async (action: string, params: Record<string, any> = {}) => {
+    if (!isConnected) {
+      setResults(prev => ({ 
+        ...prev, 
+        [action]: { success: false, error: 'Please connect your wallet first' } 
+      }))
+      return
+    }
+    
     clearError()
     const result = await (params.fn as any)(...Object.values(params).filter(v => typeof v === 'string'))
     setResults(prev => ({ ...prev, [action]: result }))
@@ -96,6 +105,26 @@ export function SonicTransactionDemo() {
         <p className="text-gray-600">Your comprehensive blockchain pal for Sonic network interactions</p>
       </div>
 
+      {/* Wallet Connection Status */}
+      <div className="mb-6">
+        <Alert className={isConnected ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}>
+          <Wallet className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            {isConnected ? (
+              <span className="flex items-center gap-2">
+                Wallet Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+                <Badge variant="secondary">Ready for transactions</Badge>
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                No wallet connected
+                <Badge variant="outline">Connect wallet to continue</Badge>
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      </div>
+
       {error && (
         <Alert className="mb-6 border-red-200 bg-red-50">
           <XCircle className="h-4 w-4 text-red-600" />
@@ -114,7 +143,7 @@ export function SonicTransactionDemo() {
             Tokens
           </TabsTrigger>
           <TabsTrigger value="bridge" className="flex items-center gap-2">
-            <Bridge className="h-4 w-4" />
+            <Network className="h-4 w-4" />
             Bridge
           </TabsTrigger>
           <TabsTrigger value="staking" className="flex items-center gap-2">
@@ -159,25 +188,12 @@ export function SonicTransactionDemo() {
                 </Button>
                 
                 <Button 
-                  onClick={() => handleTransaction('getNativeBalance', { 
-                    fn: getNativeBalance, 
-                    address: walletAddress 
-                  })}
+                  onClick={() => handleTransaction('getNativeBalance', { fn: getNativeBalance })}
                   disabled={loading}
                   variant="outline"
                 >
                   Get Native Balance
                 </Button>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="walletAddress">Wallet Address</Label>
-                <Input
-                  id="walletAddress"
-                  value={walletAddress}
-                  onChange={(e) => setWalletAddress(e.target.value)}
-                  placeholder="Enter wallet address"
-                />
               </div>
               
               {renderResult('connectWallet')}
@@ -232,22 +248,10 @@ export function SonicTransactionDemo() {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="privateKey">Private Key (for transactions)</Label>
-                <Input
-                  id="privateKey"
-                  type="password"
-                  value={privateKey}
-                  onChange={(e) => setPrivateKey(e.target.value)}
-                  placeholder="Your private key"
-                />
-              </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button 
                   onClick={() => handleTransaction('getTokenBalance', { 
                     fn: getTokenBalance, 
-                    address: walletAddress, 
                     tokenAddress 
                   })}
                   disabled={loading}
@@ -261,10 +265,9 @@ export function SonicTransactionDemo() {
                     fn: transferToken, 
                     tokenAddress, 
                     to: recipientAddress, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey}
+                  disabled={loading || !isConnected}
                   className="flex items-center gap-2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -275,7 +278,6 @@ export function SonicTransactionDemo() {
                   onClick={() => handleTransaction('getTokenAllowance', { 
                     fn: getTokenAllowance, 
                     tokenAddress, 
-                    owner: walletAddress, 
                     spender: recipientAddress 
                   })}
                   disabled={loading}
@@ -289,10 +291,9 @@ export function SonicTransactionDemo() {
                     fn: approveToken, 
                     tokenAddress, 
                     spender: recipientAddress, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey}
+                  disabled={loading || !isConnected}
                   variant="outline"
                 >
                   Approve Token
@@ -312,7 +313,7 @@ export function SonicTransactionDemo() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bridge className="h-5 w-5" />
+                <Network className="h-5 w-5" />
                 Bridge Functions
               </CardTitle>
               <CardDescription>
@@ -347,10 +348,9 @@ export function SonicTransactionDemo() {
                   onClick={() => handleTransaction('bridgeToSonic', { 
                     fn: bridgeToSonic, 
                     tokenAddress, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey}
+                  disabled={loading || !isConnected}
                   className="flex items-center gap-2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
@@ -361,10 +361,9 @@ export function SonicTransactionDemo() {
                   onClick={() => handleTransaction('bridgeToEthereum', { 
                     fn: bridgeToEthereum, 
                     tokenAddress, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey}
+                  disabled={loading || !isConnected}
                   className="flex items-center gap-2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeft className="h-4 w-4" />}
@@ -403,10 +402,9 @@ export function SonicTransactionDemo() {
                     depositBlockNumber: blockNumber, 
                     depositId, 
                     tokenAddress, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey || !depositId || !blockNumber}
+                  disabled={loading || !isConnected || !depositId || !blockNumber}
                   variant="outline"
                 >
                   Claim on Sonic
@@ -418,10 +416,9 @@ export function SonicTransactionDemo() {
                     withdrawalBlockNumber: blockNumber, 
                     withdrawalId: withdrawalId, 
                     tokenAddress, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey || !withdrawalId || !blockNumber}
+                  disabled={loading || !isConnected || !withdrawalId || !blockNumber}
                   variant="outline"
                 >
                   Claim on Ethereum
@@ -476,10 +473,9 @@ export function SonicTransactionDemo() {
                   onClick={() => handleTransaction('delegate', { 
                     fn: delegate, 
                     validatorId, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey}
+                  disabled={loading || !isConnected}
                   className="flex items-center gap-2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -490,10 +486,9 @@ export function SonicTransactionDemo() {
                   onClick={() => handleTransaction('undelegate', { 
                     fn: undelegate, 
                     validatorId, 
-                    amount, 
-                    privateKey 
+                    amount
                   })}
-                  disabled={loading || !privateKey}
+                  disabled={loading || !isConnected}
                   variant="outline"
                 >
                   Undelegate
@@ -502,7 +497,6 @@ export function SonicTransactionDemo() {
                 <Button 
                   onClick={() => handleTransaction('pendingRewards', { 
                     fn: pendingRewards, 
-                    delegator: walletAddress, 
                     validatorId 
                   })}
                   disabled={loading}
@@ -529,10 +523,9 @@ export function SonicTransactionDemo() {
                   onClick={() => handleTransaction('withdraw', { 
                     fn: withdraw, 
                     validatorId, 
-                    withdrawalId, 
-                    privateKey 
+                    withdrawalId
                   })}
-                  disabled={loading || !privateKey || !withdrawalId}
+                  disabled={loading || !isConnected || !withdrawalId}
                   variant="outline"
                 >
                   Withdraw
@@ -541,10 +534,9 @@ export function SonicTransactionDemo() {
                 <Button 
                   onClick={() => handleTransaction('claimRewards', { 
                     fn: claimRewards, 
-                    validatorId, 
-                    privateKey 
+                    validatorId
                   })}
-                  disabled={loading || !privateKey}
+                  disabled={loading || !isConnected}
                   variant="outline"
                 >
                   Claim Rewards

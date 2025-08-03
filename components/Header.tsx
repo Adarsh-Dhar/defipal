@@ -3,22 +3,27 @@
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import { Wallet } from "lucide-react"
-import { useState } from "react"
-import { connectWallet } from "@/lib/web3"
+import { useAccount, useConnect, useDisconnect } from 'wagmi'
 
 export function Header() {
-  const [isConnected, setIsConnected] = useState(false)
-  const [walletAddress, setWalletAddress] = useState<string>("")
+  const { address, isConnected } = useAccount()
+  const { connect, connectors } = useConnect()
+  const { disconnect } = useDisconnect()
 
-  const handleConnectWallet = async () => {
-    try {
-      // TODO: Replace with actual wallet connection
-      const address = await connectWallet()
-      setWalletAddress(address)
-      setIsConnected(true)
-    } catch (error) {
-      console.error("Failed to connect wallet:", error)
+  const handleConnectWallet = () => {
+    if (isConnected) {
+      disconnect()
+    } else {
+      // Connect to MetaMask (first connector)
+      const connector = connectors[0]
+      if (connector.ready) {
+        connect({ connector })
+      }
     }
+  }
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
   return (
@@ -40,7 +45,12 @@ export function Header() {
             className="flex items-center space-x-2"
           >
             <Wallet className="w-4 h-4" />
-            <span>{isConnected ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Connect Wallet"}</span>
+            <span>
+              {isConnected 
+                ? formatAddress(address!)
+                : "Connect Wallet"
+              }
+            </span>
           </Button>
         </div>
       </div>

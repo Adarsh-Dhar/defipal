@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createPublicClient, createWalletClient, http, parseEther, formatEther, readContract, writeContract, parseAbi } from 'viem'
-import { mainnet, sepolia } from 'viem/chains'
-import { privateKeyToAccount } from 'viem/accounts'
+import { createPublicClient, http, parseEther, formatEther, parseAbi } from 'viem'
+import { readContract } from 'viem/actions'
+import { sonicBlazeTestnet } from 'viem/chains'
 
 // Sonic Network Configuration
-const SONIC_CHAIN = {
-  id: 1234, // Replace with actual Sonic chain ID
-  name: 'Sonic',
-  network: 'sonic',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Sonic',
-    symbol: 'S',
-  },
-  rpcUrls: {
-    default: { http: ['https://rpc.soniclabs.com'] },
-    public: { http: ['https://rpc.soniclabs.com'] },
-  },
-} as const
+const SONIC_CHAIN = sonicBlazeTestnet
 
 // Common Token Addresses (replace with actual addresses)
 const TOKENS = {
@@ -62,13 +49,8 @@ const STAKING_ABI = parseAbi([
   'function claimRewards(uint256 validatorId) returns (bool)',
 ])
 
-// Initialize clients
+// Initialize public client for read operations
 const publicClient = createPublicClient({
-  chain: SONIC_CHAIN,
-  transport: http(),
-})
-
-const walletClient = createWalletClient({
   chain: SONIC_CHAIN,
   transport: http(),
 })
@@ -76,25 +58,6 @@ const walletClient = createWalletClient({
 // ============================================================================
 // 1. WALLET & ACCOUNT FUNCTIONS
 // ============================================================================
-
-export async function connectWallet(): Promise<string> {
-  try {
-    // This would typically be handled by wagmi in the frontend
-    // For API purposes, we'll return a mock address
-    return '0x742d35Cc6634C0532925a3b8D4C9db96590b5b8c'
-  } catch (error) {
-    throw new Error(`Failed to connect wallet: ${error}`)
-  }
-}
-
-export async function getAccountAddress(): Promise<string> {
-  try {
-    // In a real implementation, this would get the connected account
-    return '0x742d35Cc6634C0532925a3b8D4C9db96590b5b8c'
-  } catch (error) {
-    throw new Error(`Failed to get account address: ${error}`)
-  }
-}
 
 export async function getNativeBalance(address: string): Promise<string> {
   try {
@@ -130,31 +93,6 @@ export async function getTokenBalance(address: string, tokenAddress: string): Pr
   }
 }
 
-export async function transferToken(
-  tokenAddress: string,
-  to: string,
-  amount: string,
-  privateKey: string
-): Promise<string> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: tokenAddress as `0x${string}`,
-      abi: ERC20_ABI,
-      functionName: 'transfer',
-      args: [to as `0x${string}`, parsedAmount],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    return hash
-  } catch (error) {
-    throw new Error(`Failed to transfer token: ${error}`)
-  }
-}
-
 export async function getTokenAllowance(
   tokenAddress: string,
   owner: string,
@@ -174,231 +112,16 @@ export async function getTokenAllowance(
   }
 }
 
-export async function approveToken(
-  tokenAddress: string,
-  spender: string,
-  amount: string,
-  privateKey: string
-): Promise<string> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: tokenAddress as `0x${string}`,
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [spender as `0x${string}`, parsedAmount],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    return hash
-  } catch (error) {
-    throw new Error(`Failed to approve token: ${error}`)
-  }
-}
-
 // ============================================================================
-// 3. BRIDGING FUNCTIONS
+// 3. BRIDGING FUNCTIONS (Read-only operations)
 // ============================================================================
 
-export async function bridgeToSonic(
-  tokenAddress: string,
-  amount: string,
-  privateKey: string
-): Promise<{ depositId: string; txHash: string }> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: BRIDGE_CONTRACTS.ETHEREUM_BRIDGE as `0x${string}`,
-      abi: BRIDGE_ABI,
-      functionName: 'deposit',
-      args: [parsedAmount, tokenAddress as `0x${string}`],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    
-    // In a real implementation, you'd get the deposit ID from the transaction receipt
-    const depositId = Math.floor(Math.random() * 1000000).toString()
-    
-    return { depositId, txHash: hash }
-  } catch (error) {
-    throw new Error(`Failed to bridge to Sonic: ${error}`)
-  }
-}
-
-export async function claimOnSonic(
-  depositBlockNumber: string,
-  depositId: string,
-  tokenAddress: string,
-  amount: string,
-  privateKey: string
-): Promise<string> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: BRIDGE_CONTRACTS.SONIC_BRIDGE as `0x${string}`,
-      abi: BRIDGE_ABI,
-      functionName: 'claim',
-      args: [
-        BigInt(depositId),
-        BigInt(depositBlockNumber),
-        tokenAddress as `0x${string}`,
-        parsedAmount
-      ],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    return hash
-  } catch (error) {
-    throw new Error(`Failed to claim on Sonic: ${error}`)
-  }
-}
-
-export async function bridgeToEthereum(
-  tokenAddress: string,
-  amount: string,
-  privateKey: string
-): Promise<{ withdrawalId: string; txHash: string }> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: BRIDGE_CONTRACTS.SONIC_BRIDGE as `0x${string}`,
-      abi: BRIDGE_ABI,
-      functionName: 'withdraw',
-      args: [parsedAmount, tokenAddress as `0x${string}`],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    
-    // In a real implementation, you'd get the withdrawal ID from the transaction receipt
-    const withdrawalId = Math.floor(Math.random() * 1000000).toString()
-    
-    return { withdrawalId, txHash: hash }
-  } catch (error) {
-    throw new Error(`Failed to bridge to Ethereum: ${error}`)
-  }
-}
-
-export async function claimOnEthereum(
-  withdrawalBlockNumber: string,
-  withdrawalId: string,
-  tokenAddress: string,
-  amount: string,
-  privateKey: string
-): Promise<string> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: BRIDGE_CONTRACTS.ETHEREUM_BRIDGE as `0x${string}`,
-      abi: BRIDGE_ABI,
-      functionName: 'claimWithdrawal',
-      args: [
-        BigInt(withdrawalId),
-        BigInt(withdrawalBlockNumber),
-        tokenAddress as `0x${string}`,
-        parsedAmount
-      ],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    return hash
-  } catch (error) {
-    throw new Error(`Failed to claim on Ethereum: ${error}`)
-  }
-}
+// Note: Bridge transactions should be handled by the frontend with wallet signing
+// These functions are for read-only operations or status checking
 
 // ============================================================================
-// 4. STAKING FUNCTIONS
+// 4. STAKING FUNCTIONS (Read-only operations)
 // ============================================================================
-
-export async function delegate(
-  validatorId: string,
-  amount: string,
-  privateKey: string
-): Promise<string> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: STAKING_CONTRACT as `0x${string}`,
-      abi: STAKING_ABI,
-      functionName: 'delegate',
-      args: [BigInt(validatorId), parsedAmount],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    return hash
-  } catch (error) {
-    throw new Error(`Failed to delegate: ${error}`)
-  }
-}
-
-export async function undelegate(
-  validatorId: string,
-  amount: string,
-  privateKey: string
-): Promise<{ withdrawalId: string; txHash: string }> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    const parsedAmount = parseEther(amount)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: STAKING_CONTRACT as `0x${string}`,
-      abi: STAKING_ABI,
-      functionName: 'undelegate',
-      args: [BigInt(validatorId), parsedAmount],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    
-    // In a real implementation, you'd get the withdrawal ID from the transaction receipt
-    const withdrawalId = Math.floor(Math.random() * 1000000).toString()
-    
-    return { withdrawalId, txHash: hash }
-  } catch (error) {
-    throw new Error(`Failed to undelegate: ${error}`)
-  }
-}
-
-export async function withdraw(
-  validatorId: string,
-  withdrawalId: string,
-  privateKey: string
-): Promise<string> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: STAKING_CONTRACT as `0x${string}`,
-      abi: STAKING_ABI,
-      functionName: 'withdraw',
-      args: [BigInt(validatorId), BigInt(withdrawalId)],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    return hash
-  } catch (error) {
-    throw new Error(`Failed to withdraw: ${error}`)
-  }
-}
 
 export async function pendingRewards(
   delegator: string,
@@ -415,28 +138,6 @@ export async function pendingRewards(
     return formatEther(rewards as bigint)
   } catch (error) {
     throw new Error(`Failed to get pending rewards: ${error}`)
-  }
-}
-
-export async function claimRewards(
-  validatorId: string,
-  privateKey: string
-): Promise<string> {
-  try {
-    const account = privateKeyToAccount(privateKey as `0x${string}`)
-    
-    const { request } = await publicClient.simulateContract({
-      account,
-      address: STAKING_CONTRACT as `0x${string}`,
-      abi: STAKING_ABI,
-      functionName: 'claimRewards',
-      args: [BigInt(validatorId)],
-    })
-    
-    const hash = await writeContract(walletClient, request)
-    return hash
-  } catch (error) {
-    throw new Error(`Failed to claim rewards: ${error}`)
   }
 }
 
@@ -519,12 +220,6 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       // Wallet & Account Functions
-      case 'connectWallet':
-        result = await connectWallet()
-        break
-      case 'getAccountAddress':
-        result = await getAccountAddress()
-        break
       case 'getNativeBalance':
         result = await getNativeBalance(params.address)
         break
@@ -533,45 +228,13 @@ export async function POST(request: NextRequest) {
       case 'getTokenBalance':
         result = await getTokenBalance(params.address, params.tokenAddress)
         break
-      case 'transferToken':
-        result = await transferToken(params.tokenAddress, params.to, params.amount, params.privateKey)
-        break
       case 'getTokenAllowance':
         result = await getTokenAllowance(params.tokenAddress, params.owner, params.spender)
         break
-      case 'approveToken':
-        result = await approveToken(params.tokenAddress, params.spender, params.amount, params.privateKey)
-        break
 
-      // Bridging Functions
-      case 'bridgeToSonic':
-        result = await bridgeToSonic(params.tokenAddress, params.amount, params.privateKey)
-        break
-      case 'claimOnSonic':
-        result = await claimOnSonic(params.depositBlockNumber, params.depositId, params.tokenAddress, params.amount, params.privateKey)
-        break
-      case 'bridgeToEthereum':
-        result = await bridgeToEthereum(params.tokenAddress, params.amount, params.privateKey)
-        break
-      case 'claimOnEthereum':
-        result = await claimOnEthereum(params.withdrawalBlockNumber, params.withdrawalId, params.tokenAddress, params.amount, params.privateKey)
-        break
-
-      // Staking Functions
-      case 'delegate':
-        result = await delegate(params.validatorId, params.amount, params.privateKey)
-        break
-      case 'undelegate':
-        result = await undelegate(params.validatorId, params.amount, params.privateKey)
-        break
-      case 'withdraw':
-        result = await withdraw(params.validatorId, params.withdrawalId, params.privateKey)
-        break
+      // Staking Functions (Read-only)
       case 'pendingRewards':
         result = await pendingRewards(params.delegator, params.validatorId)
-        break
-      case 'claimRewards':
-        result = await claimRewards(params.validatorId, params.privateKey)
         break
 
       // Utility Functions
@@ -586,7 +249,7 @@ export async function POST(request: NextRequest) {
         break
 
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+        return NextResponse.json({ error: 'Invalid action or action requires wallet signing' }, { status: 400 })
     }
 
     return NextResponse.json({ success: true, data: result })
@@ -601,27 +264,16 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({
-    message: 'Sonic Transaction API',
+    message: 'Sonic Transaction API - Read-only operations',
     availableActions: [
-      'connectWallet',
-      'getAccountAddress',
       'getNativeBalance',
       'getTokenBalance',
-      'transferToken',
       'getTokenAllowance',
-      'approveToken',
-      'bridgeToSonic',
-      'claimOnSonic',
-      'bridgeToEthereum',
-      'claimOnEthereum',
-      'delegate',
-      'undelegate',
-      'withdraw',
       'pendingRewards',
-      'claimRewards',
       'getBlockNumber',
       'getTransactionStatus',
       'getTokenInfo',
     ],
+    note: 'Write operations (transfers, approvals, staking) should be handled by the frontend with wallet signing',
   })
 }
