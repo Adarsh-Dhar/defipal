@@ -75,7 +75,7 @@ const BRIDGE_CONTRACTS = {
 } as const
 
 // Staking Contract Address
-const STAKING_CONTRACT = '0xE8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8' // Replace with actual staking contract
+const STAKING_CONTRACT = '0xFC00FACE00000000000000000000000000000000' // Replace with actual staking contract
 
 // ============================================================================
 // HOOK
