@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { systemPrompt, functions } from './prompt'
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -10,6 +11,8 @@ interface OpenRouterRequest {
   messages: ChatMessage[]
   max_tokens?: number
   temperature?: number
+  tools?: any[]
+  tool_choice?: string
 }
 
 interface OpenRouterResponse {
@@ -17,6 +20,14 @@ interface OpenRouterResponse {
     message: {
       content: string
       role: string
+      tool_calls?: Array<{
+        id: string
+        type: string
+        function: {
+          name: string
+          arguments: string
+        }
+      }>
     }
   }>
   usage: {
@@ -37,9 +48,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY || "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"
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY || "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"
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'DeFiPal'
+
+    // Add debugging
+    console.log('API Key length:', openRouterApiKey?.length)
+    console.log('API Key starts with:', openRouterApiKey?.substring(0, 10))
 
     if (!openRouterApiKey) {
       return NextResponse.json(
@@ -52,23 +67,24 @@ export async function POST(request: NextRequest) {
     const openRouterMessages: ChatMessage[] = [
       {
         role: 'system',
-        content: `You are DeFiPal, an AI assistant for Sonic DeFi. You help users with:
-- Token swapping and exchanges
-- Checking wallet balances
-- Finding farming opportunities
-- Managing staking positions
-- Providing DeFi education and guidance
-
-Always be helpful, concise, and focus on Sonic DeFi ecosystem. If asked about other chains or protocols, redirect them to Sonic DeFi features.`
+        content: systemPrompt
       },
       ...messages
     ]
 
+    // Convert functions to tools format
+    const tools = functions.map(func => ({
+      type: 'function',
+      function: func
+    }))
+
     const requestBody: OpenRouterRequest = {
-      model: 'deepseek/deepseek-r1:free',
+      model: 'openrouter/horizon-beta',
       messages: openRouterMessages,
       max_tokens: 500,
-      temperature: 0.7
+      temperature: 0.7,
+      tools: tools,
+      tool_choice: 'auto'
     }
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -82,6 +98,10 @@ Always be helpful, concise, and focus on Sonic DeFi ecosystem. If asked about ot
       body: JSON.stringify(requestBody)
     })
 
+    // Add debugging for response headers
+    console.log('Response status:', response.status)
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
     if (!response.ok) {
       const errorText = await response.text()
       console.error('OpenRouter API error:', errorText)
@@ -92,18 +112,36 @@ Always be helpful, concise, and focus on Sonic DeFi ecosystem. If asked about ot
     }
 
     const data: OpenRouterResponse = await response.json()
-    
+
+    // Add debugging to see the actual response
+    console.log('Response data:', JSON.stringify(data, null, 2))
+
     if (!data.choices || data.choices.length === 0) {
+      console.log('No choices in response')
       return NextResponse.json(
         { error: 'No response from AI service' },
         { status: 500 }
       )
     }
 
-    const aiResponse = data.choices[0].message.content
+    const choice = data.choices[0]
+    console.log('Choice:', JSON.stringify(choice, null, 2))
+
+    const aiResponse = choice.message.content
+    const toolCalls = choice.message.tool_calls
+
+    console.log('AI Response:', aiResponse)
+    console.log('Tool Calls:', toolCalls)
+
+    // Convert tool_calls back to function_call format for compatibility
+    const functionCall = toolCalls && toolCalls.length > 0 ? {
+      name: toolCalls[0].function.name,
+      arguments: toolCalls[0].function.arguments
+    } : undefined
 
     return NextResponse.json({
       content: aiResponse,
+      function_call: functionCall,
       usage: data.usage
     })
 
