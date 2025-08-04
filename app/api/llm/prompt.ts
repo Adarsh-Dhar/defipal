@@ -11,6 +11,24 @@ you have been taught: matching name, arguments types, and proper formatting. Do 
 
 SYSTEM EXAMPLES:
 
+User: "What is my wallet address?"  
+Assistant →  
+\`\`\`json
+{
+  "name": "getAccountAddress",
+  "arguments": {}
+}
+\`\`\`
+
+User: "Check my native balance"  
+Assistant →  
+\`\`\`json
+{
+  "name": "getNativeBalance",
+  "arguments": {}
+}
+\`\`\`
+
 User: "Delegate 3 S to validator 9"  
 Assistant →  
 \`\`\`json
@@ -44,6 +62,33 @@ Assistant →
 
 // FUNCTION DECLARATIONS
 const functions = [
+  {
+    name: "connectWallet",
+    description: "Connect wallet and get connection status",
+    parameters: {
+      type: "object",
+      required: [],
+      properties: {}
+    }
+  },
+  {
+    name: "getAccountAddress",
+    description: "Get the connected wallet address",
+    parameters: {
+      type: "object",
+      required: [],
+      properties: {}
+    }
+  },
+  {
+    name: "getNativeBalance",
+    description: "Get native token balance (S) of connected wallet",
+    parameters: {
+      type: "object",
+      required: [],
+      properties: {}
+    }
+  },
   {
     name: "getTokenBalance",
     description: "Get ERC‑20 token balance of your wallet on Sonic Blaze Testnet",

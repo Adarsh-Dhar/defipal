@@ -1,86 +1,85 @@
-# DeFiPal
+# DeFiPal - AI-Powered Sonic DeFi Assistant
 
-A modern AI-powered DeFi assistant for Sonic DeFi ecosystem.
+A modern, AI-powered DeFi assistant for Sonic blockchain operations with a beautiful glass-morphism UI.
 
-## Features
+## 🚀 Quick Start
 
-- 🤖 AI-powered chat interface for DeFi assistance
-- 💬 Real-time conversation with DeFiPal AI
-- 🎨 Beautiful glass morphism UI with Tailwind CSS
-- ⚡ Fast and responsive design
-- 🔒 Secure API integration with OpenRouter
+1. **Install dependencies:**
+   ```bash
+   npm install
+   # or
+   pnpm install
+   ```
 
-## Setup
+2. **Start the development server:**
+   ```bash
+   npm run dev
+   # or
+   pnpm dev
+   ```
 
-### 1. Install Dependencies
+3. **Open your browser:**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
+## 🔧 What's Fixed
+
+### ✅ Hydration Errors
+- Added `suppressHydrationWarning` to prevent server/client rendering mismatches
+- Implemented proper mounting states for wallet connection components
+- Fixed client-side only content rendering issues
+
+### ✅ Wallet Connection Issues
+- Removed problematic WalletConnect configuration that was causing 403 errors
+- Simplified to use only MetaMask and Coinbase Wallet connectors
+- Added proper error handling for wallet connection attempts
+- Improved fallback logic when MetaMask is not available
+
+### ✅ UI/UX Improvements
+- Maintained the beautiful glass-morphism aesthetic
+- Added proper loading states and error handling
+- Ensured responsive design with Tailwind CSS
+
+## 🎨 Features
+
+- **AI-Powered Chat Interface**: Intelligent assistant for DeFi operations
+- **Wallet Integration**: Connect with MetaMask or Coinbase Wallet
+- **Sonic Blockchain Support**: Native integration with Sonic testnet
+- **Modern UI**: Glass-morphism design with smooth animations
+- **Dark/Light Mode**: Theme toggle with system preference detection
+
+## 🛠️ Technical Stack
+
+- **Framework**: Next.js 14 with App Router
+- **Styling**: Tailwind CSS with custom glass-morphism effects
+- **Animations**: Framer Motion
+- **Wallet**: Wagmi + Viem for blockchain interactions
+- **AI**: OpenRouter API for intelligent responses
+- **UI Components**: Radix UI primitives
+
+## 🔗 Blockchain Integration
+
+The app is configured for Sonic Blaze testnet:
+- **RPC URL**: `https://rpc.blaze.soniclabs.com`
+- **Chain ID**: 57054
+- **Supported Operations**: Token transfers, staking, bridging, and more
+
+## 🚨 Troubleshooting
+
+If you encounter any issues:
+
+1. **Wallet Connection**: Make sure MetaMask is installed and connected to Sonic testnet
+2. **AI Responses**: Check that the OpenRouter API key is properly configured
+3. **Hydration Errors**: Clear browser cache and restart the development server
+
+## 📝 Environment Variables
+
+Create a `.env.local` file with:
 ```
-
-### 2. Environment Variables
-
-Create a `.env.local` file in the root directory with the following variables:
-
-```env
-# OpenRouter API Configuration
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-
-# Site Configuration (optional)
+OPENROUTER_API_KEY=your_api_key_here
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SITE_NAME=DeFiPal
 ```
 
-### 3. Get OpenRouter API Key
+## 🎯 Next Steps
 
-1. Visit [OpenRouter](https://openrouter.ai/)
-2. Sign up for an account
-3. Get your API key from the dashboard
-4. Add it to your `.env.local` file
-
-### 4. Run the Development Server
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to view the application.
-
-## API Integration
-
-The app uses OpenRouter's API to power the AI chat functionality. The AI is specifically trained to help with:
-
-- Token swapping and exchanges
-- Checking wallet balances
-- Finding farming opportunities
-- Managing staking positions
-- Providing DeFi education and guidance
-
-## Tech Stack
-
-- **Framework**: Next.js 14 with App Router
-- **Styling**: Tailwind CSS with glass morphism effects
-- **Animations**: Framer Motion
-- **AI**: OpenRouter API with DeepSeek model
-- **TypeScript**: Full type safety
-
-## Project Structure
-
-```
-defipal/
-├── app/
-│   ├── api/llm/route.ts    # LLM API endpoint
-│   ├── globals.css         # Global styles
-│   └── page.tsx           # Main chat interface
-├── components/             # React components
-├── types/                 # TypeScript type definitions
-└── styles/               # Additional styles
-```
+The app is now ready for development! The hydration errors have been resolved and wallet connection should work properly with MetaMask and Coinbase Wallet.

@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChatContainer } from "@/components/ChatContainer"
 import { ChatInput } from "@/components/ChatInput"
 import { motion } from "framer-motion"
 import type { Message } from "@/types"
 import { useSonicTransactions } from "@/hooks/useSonicTransactions"
+import { useAccount } from 'wagmi'
+import { WalletDebug } from "@/components/WalletDebug"
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
@@ -18,9 +20,22 @@ export default function Home() {
     },
   ])
   const [isTyping, setIsTyping] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Get wallet connection state
+  const { address, isConnected } = useAccount()
+
+  // Ensure component is mounted before rendering wallet status
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Get Sonic transaction functions
   const {
+    connectWallet,
+    disconnectWallet,
+    getAccountAddress,
+    getNativeBalance,
     getTokenBalance,
     transferToken,
     getTokenAllowance,
@@ -43,6 +58,14 @@ export default function Home() {
   const executeFunction = async (functionName: string, args: any) => {
     try {
       switch (functionName) {
+        case 'connectWallet':
+          return await connectWallet()
+        case 'disconnectWallet':
+          return await disconnectWallet()
+        case 'getAccountAddress':
+          return await getAccountAddress()
+        case 'getNativeBalance':
+          return await getNativeBalance()
         case 'getTokenBalance':
           return await getTokenBalance(args.tokenAddress)
         case 'transferToken':
@@ -169,23 +192,47 @@ export default function Home() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)]"
-    >
-      <div className="w-full max-w-md mx-auto">
-        <motion.div
-          initial={{ scale: 0.95 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-          className="glass-morphism rounded-2xl shadow-2xl overflow-hidden"
-        >
-          <ChatContainer messages={messages} isTyping={isTyping} />
-          <ChatInput onSendMessage={handleSendMessage} />
-        </motion.div>
-      </div>
-    </motion.div>
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)]"
+      >
+        <div className="w-full max-w-md mx-auto">
+          {/* Wallet Status */}
+          {mounted && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-xs font-medium text-gray-700">
+                    {isConnected ? 'Wallet Connected' : 'Wallet Disconnected'}
+                  </span>
+                </div>
+                {isConnected && address && (
+                  <div className="text-xs text-gray-600">
+                    {address.slice(0, 6)}...{address.slice(-4)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <motion.div
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+            className="glass-morphism rounded-2xl shadow-2xl overflow-hidden"
+          >
+            <ChatContainer messages={messages} isTyping={isTyping} />
+            <ChatInput onSendMessage={handleSendMessage} />
+          </motion.div>
+        </div>
+      </motion.div>
+      
+      {/* Debug component - remove this after testing */}
+      <WalletDebug />
+    </>
   )
 }

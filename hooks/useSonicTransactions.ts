@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useAccount, useWalletClient, usePublicClient } from 'wagmi'
+import { useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from 'wagmi'
 import { parseEther, formatEther, parseAbi } from 'viem'
 import { readContract, writeContract } from 'viem/actions'
 
@@ -88,17 +88,57 @@ export function useSonicTransactions() {
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
+  const { connect, connectors } = useConnect()
+  const { disconnect } = useDisconnect()
 
   // ============================================================================
   // 1. WALLET & ACCOUNT FUNCTIONS
   // ============================================================================
 
   const connectWallet = useCallback(async (): Promise<TransactionResult> => {
-    if (!isConnected) {
-      return { success: false, error: 'Wallet not connected' }
+    try {
+      setLoading(true)
+      
+      // Try to find available connectors
+      const availableConnectors = connectors.filter(connector => connector.ready)
+      
+      if (availableConnectors.length === 0) {
+        return { success: false, error: 'No wallet connectors available. Please install MetaMask or another wallet extension.' }
+      }
+      
+      // Try MetaMask first, then fall back to other available connectors
+      let connector = availableConnectors.find(connector => 
+        connector.name.toLowerCase().includes('metamask') || 
+        connector.name.toLowerCase().includes('injected')
+      )
+      
+      if (!connector) {
+        connector = availableConnectors[0] // Use the first available connector
+      }
+      
+      // Connect to wallet
+      await connect({ connector })
+      
+      return { success: true, data: { message: `Connected to ${connector.name}` } }
+    } catch (err) {
+      console.error('Wallet connection error:', err)
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to connect wallet' }
+    } finally {
+      setLoading(false)
     }
-    return { success: true, data: address }
-  }, [isConnected, address])
+  }, [connect, connectors])
+
+  const disconnectWallet = useCallback(async (): Promise<TransactionResult> => {
+    try {
+      setLoading(true)
+      disconnect()
+      return { success: true, data: { message: 'Wallet disconnected successfully' } }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to disconnect wallet' }
+    } finally {
+      setLoading(false)
+    }
+  }, [disconnect])
 
   const getAccountAddress = useCallback(async (): Promise<TransactionResult> => {
     if (!address) {
@@ -582,6 +622,7 @@ export function useSonicTransactions() {
     
     // Wallet & Account Functions
     connectWallet,
+    disconnectWallet,
     getAccountAddress,
     getNativeBalance,
     

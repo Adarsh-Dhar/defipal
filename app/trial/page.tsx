@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSonicTransactions } from '@/hooks/useSonicTransactions'
+import { useAccount } from 'wagmi'
 
 export default function TrialPage() {
   const [results, setResults] = useState<Record<string, any>>({})
@@ -24,6 +25,7 @@ export default function TrialPage() {
     clearError,
     reset,
     connectWallet,
+    disconnectWallet,
     getAccountAddress,
     getNativeBalance,
     getTokenBalance,
@@ -43,6 +45,9 @@ export default function TrialPage() {
     getTransactionStatus,
     getTokenInfo,
   } = useSonicTransactions()
+
+  // Get wallet connection state
+  const { address, isConnected } = useAccount()
 
   const handleFunctionCall = async (functionName: string, fn: () => Promise<any>) => {
     try {
@@ -128,6 +133,23 @@ export default function TrialPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
             Sonic Transactions Trial
           </h1>
+
+          {/* Wallet Status */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm font-medium text-gray-700">
+                  Wallet Status: {isConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+              {isConnected && address && (
+                <div className="text-sm text-gray-600">
+                  Address: {address.slice(0, 6)}...{address.slice(-4)}
+                </div>
+              )}
+            </div>
+          </div>
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -220,6 +242,14 @@ export default function TrialPage() {
                   color="bg-green-500 hover:bg-green-600"
                 />
                 <ResultDisplay functionName="connectWallet" />
+              </div>
+              <div>
+                <FunctionButton
+                  title="Disconnect Wallet"
+                  onClick={() => handleFunctionCall('disconnectWallet', disconnectWallet)}
+                  color="bg-red-500 hover:bg-red-600"
+                />
+                <ResultDisplay functionName="disconnectWallet" />
               </div>
               <div>
                 <FunctionButton

@@ -1,11 +1,9 @@
 'use client'
 
 import { createConfig, http, WagmiProvider } from 'wagmi'
-import { defineChain } from 'viem'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { injected } from 'wagmi/connectors'
 import { sonicBlazeTestnet } from 'viem/chains'
-
 
 const config = createConfig({
   chains: [sonicBlazeTestnet],
@@ -14,7 +12,24 @@ const config = createConfig({
   },
   connectors: [
     injected({
-      target: 'metaMask'
+      target: 'metaMask',
+      shimDisconnect: true,
+    }),
+    injected({
+      target: 'coinbaseWallet',
+      shimDisconnect: true,
+    }),
+    injected({
+      target: 'tokenPocket',
+      shimDisconnect: true,
+    }),
+    injected({
+      target: 'trust',
+      shimDisconnect: true,
+    }),
+    // Generic injected connector as fallback
+    injected({
+      shimDisconnect: true,
     }),
   ],
 })
