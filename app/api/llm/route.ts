@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY || "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"
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'DeFiPal'
 
