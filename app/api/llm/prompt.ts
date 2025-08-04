@@ -56,6 +56,31 @@ const functions = [
     }
   },
   {
+    name: "transferToken",
+    description: "Transfer ERC‑20 tokens from your wallet to another address",
+    parameters: {
+      type: "object",
+      required: ["tokenAddress","toAddress","amount"],
+      properties: {
+        tokenAddress: { type: "string" },
+        toAddress: { type: "string" },
+        amount: { type: "string", description: "Numeric in S or token decimals" }
+      }
+    }
+  },
+  {
+    name: "getTokenAllowance",
+    description: "Check token allowance for a spender address",
+    parameters: {
+      type: "object",
+      required: ["tokenAddress","spender"],
+      properties: {
+        tokenAddress: { type: "string" },
+        spender: { type: "string" }
+      }
+    }
+  },
+  {
     name: "approveToken",
     description: "Approve spender to transfer tokens from your wallet",
     parameters: {
@@ -65,6 +90,17 @@ const functions = [
         tokenAddress: { type: "string" },
         spender: { type: "string" },
         amount: { type: "string", description: "Numeric in S or token decimals" }
+      }
+    }
+  },
+  {
+    name: "getTokenInfo",
+    description: "Get token information (name, symbol, decimals)",
+    parameters: {
+      type: "object",
+      required: ["tokenAddress"],
+      properties: {
+        tokenAddress: { type: "string" }
       }
     }
   },
@@ -171,6 +207,26 @@ const functions = [
         withdrawalId: { type: "string" },
         tokenAddress: { type: "string" },
         amount: { type: "string" }
+      }
+    }
+  },
+  {
+    name: "getBlockNumber",
+    description: "Get current block number on Sonic Blaze Testnet",
+    parameters: {
+      type: "object",
+      required: [],
+      properties: {}
+    }
+  },
+  {
+    name: "getTransactionStatus",
+    description: "Check transaction status by transaction hash",
+    parameters: {
+      type: "object",
+      required: ["txHash"],
+      properties: {
+        txHash: { type: "string" }
       }
     }
   }

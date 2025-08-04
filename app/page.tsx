@@ -5,6 +5,7 @@ import { ChatContainer } from "@/components/ChatContainer"
 import { ChatInput } from "@/components/ChatInput"
 import { motion } from "framer-motion"
 import type { Message } from "@/types"
+import { useSonicTransactions } from "@/hooks/useSonicTransactions"
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
@@ -17,6 +18,73 @@ export default function Home() {
     },
   ])
   const [isTyping, setIsTyping] = useState(false)
+
+  // Get Sonic transaction functions
+  const {
+    getTokenBalance,
+    transferToken,
+    getTokenAllowance,
+    approveToken,
+    bridgeToSonic,
+    claimOnSonic,
+    bridgeToEthereum,
+    claimOnEthereum,
+    delegate,
+    undelegate,
+    withdraw,
+    pendingRewards,
+    claimRewards,
+    getBlockNumber,
+    getTransactionStatus,
+    getTokenInfo,
+  } = useSonicTransactions()
+
+  // Function mapping for executing LLM function calls
+  const executeFunction = async (functionName: string, args: any) => {
+    try {
+      switch (functionName) {
+        case 'getTokenBalance':
+          return await getTokenBalance(args.tokenAddress)
+        case 'transferToken':
+          return await transferToken(args.tokenAddress, args.toAddress, args.amount)
+        case 'getTokenAllowance':
+          return await getTokenAllowance(args.tokenAddress, args.spender)
+        case 'approveToken':
+          return await approveToken(args.tokenAddress, args.spender, args.amount)
+        case 'bridgeToSonic':
+          return await bridgeToSonic(args.tokenAddress, args.amount)
+        case 'claimOnSonic':
+          return await claimOnSonic(args.depositBlockNumber, args.depositId, args.tokenAddress, args.amount)
+        case 'bridgeToEthereum':
+          return await bridgeToEthereum(args.tokenAddress, args.amount)
+        case 'claimOnEthereum':
+          return await claimOnEthereum(args.withdrawalBlockNumber, args.withdrawalId, args.tokenAddress, args.amount)
+        case 'delegate':
+          return await delegate(args.validatorId, args.amount)
+        case 'undelegate':
+          return await undelegate(args.validatorId, args.amount)
+        case 'withdraw':
+          return await withdraw(args.validatorId, args.withdrawalId)
+        case 'pendingRewards':
+          return await pendingRewards(args.validatorId)
+        case 'claimRewards':
+          return await claimRewards(args.validatorId)
+        case 'getBlockNumber':
+          return await getBlockNumber()
+        case 'getTransactionStatus':
+          return await getTransactionStatus(args.txHash)
+        case 'getTokenInfo':
+          return await getTokenInfo(args.tokenAddress)
+        default:
+          throw new Error(`Unknown function: ${functionName}`)
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Function execution failed'
+      }
+    }
+  }
 
   const handleSendMessage = async (content: string) => {
     // Add user message
@@ -59,9 +127,25 @@ export default function Home() {
 
       const data = await response.json()
       
+      let assistantContent = data.content
+
+      // If there's a function call, execute it and add the result to the response
+      if (data.function_call) {
+        const { name, arguments: functionArgs } = data.function_call
+        const parsedArgs = typeof functionArgs === 'string' ? JSON.parse(functionArgs) : functionArgs
+        
+        const result = await executeFunction(name, parsedArgs)
+        
+        if (result.success) {
+          assistantContent += `\n\n✅ Function executed successfully!\nResult: ${JSON.stringify(result.data, null, 2)}`
+        } else {
+          assistantContent += `\n\n❌ Function execution failed: ${result.error}`
+        }
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.content,
+        content: assistantContent,
         role: "assistant",
         timestamp: new Date(),
       }

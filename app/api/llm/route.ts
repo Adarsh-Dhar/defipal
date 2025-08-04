@@ -139,8 +139,14 @@ export async function POST(request: NextRequest) {
       arguments: toolCalls[0].function.arguments
     } : undefined
 
+    // If there's a tool call but no content, provide a default response
+    let responseContent = aiResponse
+    if (functionCall && !aiResponse) {
+      responseContent = `I'll help you with that. Let me execute the ${functionCall.name} function for you.`
+    }
+
     return NextResponse.json({
-      content: aiResponse,
+      content: responseContent,
       function_call: functionCall,
       usage: data.usage
     })
