@@ -6,10 +6,10 @@ import { useSonicTransactions } from '@/hooks/useSonicTransactions'
 export default function TrialPage() {
   const [results, setResults] = useState<Record<string, any>>({})
   const [inputs, setInputs] = useState({
-    tokenAddress: '0x1234567890123456789012345678901234567890',
-    toAddress: '0x0987654321098765432109876543210987654321',
+    tokenAddress: '0xAF93888cbD250300470A1618206e036E11470149',
+    toAddress: '0x7a39037548C388579266657e1e9037613Ee798F1',
     amount: '0.1',
-    spender: '0x1111111111111111111111111111111111111111',
+    spender: '0x086D426f8B653b88a2d6D03051C8b4aB8783Be2b',
     depositId: '12345',
     depositBlockNumber: '12345678',
     withdrawalId: '67890',
