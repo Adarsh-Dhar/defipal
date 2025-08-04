@@ -70,8 +70,8 @@ const STAKING_ABI = parseAbi([
 
 // Bridge Contract Addresses
 const BRIDGE_CONTRACTS = {
-  SONIC_BRIDGE: '0xC8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8', // Replace with actual bridge address
-  ETHEREUM_BRIDGE: '0xD8D8D8D8D8D8D8D8D8D8D8D8D8D8D8D8D8D8D8D8', // Replace with actual bridge address
+  SONIC_BRIDGE: '0x9Ef7629F9B930168b76283AdD7120777b3c895b3', // Replace with actual bridge address
+  ETHEREUM_BRIDGE: '0xa1E2481a9CD0Cb0447EeB1cbc26F1b3fff3bec20', // Replace with actual bridge address
 } as const
 
 // Staking Contract Address
