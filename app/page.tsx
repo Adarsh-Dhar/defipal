@@ -77,11 +77,11 @@ export default function Home() {
         case 'bridgeToSonic':
           return await bridgeToSonic(args.tokenAddress, args.amount)
         case 'claimOnSonic':
-          return await claimOnSonic(args.depositBlockNumber, args.depositId, args.tokenAddress, args.amount)
+          return await claimOnSonic(args.tokenAddress, args.amount)
         case 'bridgeToEthereum':
           return await bridgeToEthereum(args.tokenAddress, args.amount)
         case 'claimOnEthereum':
-          return await claimOnEthereum(args.withdrawalBlockNumber, args.withdrawalId, args.tokenAddress, args.amount)
+          return await claimOnEthereum(args.tokenAddress, args.amount)
         case 'delegate':
           return await delegate(args.validatorId, args.amount)
         case 'undelegate':

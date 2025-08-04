@@ -96,8 +96,34 @@ export async function getTokenBalance(address: string, tokenAddress: string): Pr
 export async function getTokenAllowance(
   tokenAddress: string,
   owner: string,
-  spender: string
-): Promise<string> {
+  spender?: string
+): Promise<string | { message: string; spenderOptions: Array<{ address: string; name: string; description: string }> }> {
+  // If no spender is provided, return predefined spender options
+  if (!spender) {
+    const spenderOptions = [
+      {
+        address: '0x9Ef7629F9B930168b76283AdD7120777b3c895B3',
+        name: 'Sonic Bridge',
+        description: 'Bridge tokens back to Ethereum - Must approve this contract to withdraw minted ERC‑20 tokens on L2'
+      },
+      {
+        address: '0xa1E2481a9CD0Cb0447EeB1cbc26F1b3fff3bec20',
+        name: 'Token Deposit (L1 Bridge)',
+        description: 'When bridging from Ethereum → Sonic (on L1), approve here first'
+      },
+      {
+        address: '0xcA11bde05977b3631167028862bE2a173976CA11',
+        name: 'Multicall3',
+        description: 'Utility/meta‑tx services - Rarely needs allowance unless you\'re approving tokens for gas payment flows'
+      }
+    ]
+    
+    return {
+      message: 'Please select a spender from the predefined options:',
+      spenderOptions
+    }
+  }
+
   try {
     const allowance = await readContract(publicClient, {
       address: tokenAddress as `0x${string}`,

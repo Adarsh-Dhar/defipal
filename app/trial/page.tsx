@@ -332,7 +332,7 @@ export default function TrialPage() {
               <div>
                 <FunctionButton
                   title="Claim on Sonic"
-                  onClick={() => handleFunctionCall('claimOnSonic', () => claimOnSonic(inputs.depositBlockNumber, inputs.depositId, inputs.tokenAddress, inputs.amount))}
+                  onClick={() => handleFunctionCall('claimOnSonic', () => claimOnSonic(inputs.tokenAddress, inputs.amount))}
                   color="bg-orange-500 hover:bg-orange-600"
                 />
                 <ResultDisplay functionName="claimOnSonic" />
@@ -348,7 +348,7 @@ export default function TrialPage() {
               <div>
                 <FunctionButton
                   title="Claim on Ethereum"
-                  onClick={() => handleFunctionCall('claimOnEthereum', () => claimOnEthereum(inputs.withdrawalBlockNumber, inputs.withdrawalId, inputs.tokenAddress, inputs.amount))}
+                  onClick={() => handleFunctionCall('claimOnEthereum', () => claimOnEthereum(inputs.tokenAddress, inputs.amount))}
                   color="bg-orange-500 hover:bg-orange-600"
                 />
                 <ResultDisplay functionName="claimOnEthereum" />
