@@ -13,10 +13,36 @@ export interface TransactionResult {
   error?: string
 }
 
-export interface BridgeResult {
-  depositId?: string
-  withdrawalId?: string
-  txHash: string
+export interface YieldPosition {
+  protocol: string
+  poolAddress: string
+  amount: string
+  apy: string
+  rewards: string[]
+}
+
+export interface ProtocolMetrics {
+  protocol: string
+  timeframe: string
+  tvl: string
+  apy: string
+  volume: string
+}
+
+export interface GaugeBribe {
+  gauge: string
+  period: string
+  weight: string
+  bribes: any[]
+}
+
+export interface YieldOpportunity {
+  protocol: string
+  pool: string
+  apy: number
+  risk: string
+  tvl: string
+  strategy: string
 }
 
 export interface TransactionStatus {
@@ -31,20 +57,19 @@ export interface TokenInfo {
   decimals: number
 }
 
-export interface StakingResult {
-  withdrawalId?: string
-  txHash: string
-}
-
-export interface SpenderOption {
-  address: string
-  name: string
-  description: string
-}
-
 // ============================================================================
-// CONSTANTS
+// YIELD FARMING CONSTANTS
 // ============================================================================
+
+// Yield Farming Protocol Addresses
+const PROTOCOL_ADDRESSES = {
+  CURVE_FACTORY: '0xB9fC1576AcEF6a36d82dEeB67FFf847D9B51a99A',
+  CONVEX_BOOSTER: '0xF403C135812408BFbE8713b5A23a04b3D48AAE31',
+  YEARN_REGISTRY: '0x50c1a2eA0a861A967D9d0FFE2AE4012c2E053804',
+  BEEFY_VAULT_FACTORY: '0x9dDA6Ef3D919c9bC8885D556A9A83D0b307d86E3',
+  GAUGE_CONTROLLER: '0x2F50D53826Fa9F7C3D7C556c6eF7cE8A9B5b4b5c',
+  VOTE_ESCROWED_CRV: '0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2',
+} as const
 
 // ERC-20 ABI for token operations
 const ERC20_ABI = parseAbi([
@@ -57,60 +82,47 @@ const ERC20_ABI = parseAbi([
   'function decimals() view returns (uint8)',
 ])
 
-// Bridge ABI
-const BRIDGE_ABI = parseAbi([
-  'function deposit(uint96 uid, address token, uint256 amount) returns (uint256)',
-  'function claim(address token, uint256 amount) returns (bool)',
-  'function withdraw(uint96 uid, address token, uint256 amount) returns (uint256)',
-  'function claimWithdrawal(address token, uint256 amount) returns (bool)',
-  'event Deposit(uint256 indexed id, address indexed owner, address token, uint256 amount)',
-  'event Claim(uint256 indexed depositId, address indexed token, uint256 amount, uint256 blockNumber)',
-  'event Withdrawal(uint256 indexed id, address indexed owner, address token, uint256 amount)',
-  'event ClaimWithdrawal(uint256 indexed withdrawalId, address indexed token, uint256 amount, uint256 blockNumber)',
+// Yield Farming ABIs
+const CURVE_POOL_ABI = parseAbi([
+  'function add_liquidity(uint256[2] amounts, uint256 min_mint_amount) returns (uint256)',
+  'function remove_liquidity(uint256 _amount, uint256[2] min_amounts) returns (uint256[2])',
+  'function get_virtual_price() view returns (uint256)',
+  'function totalSupply() view returns (uint256)',
+  'function balanceOf(address _addr) view returns (uint256)',
 ])
 
-// Staking ABI
-const STAKING_ABI = parseAbi([
-  'function delegate(uint256 validatorId, uint256 amount) returns (bool)',
-  'function undelegate(uint256 validatorId, uint256 amount) returns (uint256)',
-  'function withdraw(uint256 validatorId, uint256 withdrawalId) returns (bool)',
-  'function pendingRewards(address delegator, uint256 validatorId) view returns (uint256)',
-  'function claimRewards(uint256 validatorId) returns (bool)',
+const GAUGE_ABI = parseAbi([
+  'function deposit(uint256 _value) returns (bool)',
+  'function withdraw(uint256 _value) returns (bool)',
+  'function claim_rewards() returns (bool)',
+  'function claimable_reward(address _addr, address _token) view returns (uint256)',
+  'function balanceOf(address _addr) view returns (uint256)',
 ])
 
-// Bridge Contract Addresses
-const BRIDGE_CONTRACTS = {
-  SONIC_BRIDGE: '0x9Ef7629F9B930168b76283AdD7120777b3c895b3', // Replace with actual bridge address
-  ETHEREUM_BRIDGE: '0xa1E2481a9CD0Cb0447EeB1cbc26F1b3fff3bec20', // Replace with actual bridge address
-} as const
+const CONVEX_BOOSTER_ABI = parseAbi([
+  'function deposit(uint256 _pid, uint256 _amount, bool _stake) returns (bool)',
+  'function withdraw(uint256 _pid, uint256 _amount) returns (bool)',
+  'function poolInfo(uint256) view returns (address, address, address, address, address, bool)',
+])
 
-// Staking Contract Address
-const STAKING_CONTRACT = '0xFC00FACE00000000000000000000000000000000' // Replace with actual staking contract
+const VOTE_ESCROW_ABI = parseAbi([
+  'function vote_for_gauge_weights(address _gauge_addr, uint256 _user_weight) returns (bool)',
+  'function get_gauge_weight(address _gauge) view returns (uint256)',
+  'function gauge_relative_weight(address _gauge) view returns (uint256)',
+])
 
-// Predefined Spender Addresses
-export const PREDEFINED_SPENDERS = {
-  SONIC_BRIDGE: {
-    address: '0x9Ef7629F9B930168b76283AdD7120777b3c895B3',
-    name: 'Sonic Bridge',
-    description: 'Bridge tokens back to Ethereum - Must approve this contract to withdraw minted ERC‑20 tokens on L2'
-  },
-  TOKEN_DEPOSIT_L1_BRIDGE: {
-    address: '0xa1E2481a9CD0Cb0447EeB1cbc26F1b3fff3bec20',
-    name: 'Token Deposit (L1 Bridge)',
-    description: 'When bridging from Ethereum → Sonic (on L1), approve here first'
-  },
-  MULTICALL3: {
-    address: '0xcA11bde05977b3631167028862bE2a173976CA11',
-    name: 'Multicall3',
-    description: 'Utility/meta‑tx services - Rarely needs allowance unless you\'re approving tokens for gas payment flows'
-  }
-} as const
+const YEARN_VAULT_ABI = parseAbi([
+  'function deposit(uint256 _amount) returns (uint256)',
+  'function withdraw(uint256 _shares) returns (uint256)',
+  'function pricePerShare() view returns (uint256)',
+  'function balanceOf(address _addr) view returns (uint256)',
+])
 
 // ============================================================================
 // HOOK
 // ============================================================================
 
-export function useSonicTransactions() {
+export function useYieldFarming() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -242,53 +254,6 @@ export function useSonicTransactions() {
     }
   }, [address, walletClient])
 
-  const getTokenAllowance = useCallback(async (
-    tokenAddress: string,
-    spender?: string
-  ): Promise<TransactionResult> => {
-    if (!address || !publicClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    // If no spender is provided, return the predefined spender options
-    if (!spender) {
-      const spenderOptions = Object.values(PREDEFINED_SPENDERS).map(spender => ({
-        address: spender.address,
-        name: spender.name,
-        description: spender.description
-      }))
-      
-      return { 
-        success: true, 
-        data: {
-          message: 'Please select a spender from the predefined options:',
-          spenderOptions
-        }
-      }
-    }
-
-    try {
-      const allowance = await readContract(publicClient, {
-        address: tokenAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'allowance',
-        args: [address, spender as `0x${string}`],
-      })
-      
-      return { success: true, data: formatEther(allowance as bigint) }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to get allowance' }
-    }
-  }, [address, publicClient])
-
-  const getSpenderOptions = useCallback((): SpenderOption[] => {
-    return Object.values(PREDEFINED_SPENDERS).map(spender => ({
-      address: spender.address,
-      name: spender.name,
-      description: spender.description
-    }))
-  }, [])
-
   const approveToken = useCallback(async (
     tokenAddress: string,
     spender: string,
@@ -318,14 +283,170 @@ export function useSonicTransactions() {
   }, [address, walletClient])
 
   // ============================================================================
-  // 3. BRIDGING FUNCTIONS
+  // 3. YIELD FARMING ANALYTICS FUNCTIONS
   // ============================================================================
 
-  const bridgeToSonic = useCallback(async (
-    tokenAddress: string,
-    amount: string
+  const getProtocolMetrics = useCallback(async (
+    protocol: string,
+    timeframe: string = '7d'
   ): Promise<TransactionResult> => {
-    if (!address || !walletClient || !publicClient) {
+    try {
+      setLoading(true)
+      
+      // This would typically call your backend API or multiple RPC calls
+      // For now, showing the structure with mock data
+      const mockMetrics = {
+        protocol,
+        timeframe,
+        tvl: '1000000',
+        apy: '12.5',
+        volume: '500000',
+      }
+      
+      return {
+        success: true,
+        data: mockMetrics
+      }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to get protocol metrics' }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const getGaugeBribes = useCallback(async (
+    gauge: string,
+    period: string = 'current_week'
+  ): Promise<TransactionResult> => {
+    if (!publicClient) {
+      return { success: false, error: 'Client not available' }
+    }
+
+    try {
+      // Get gauge weight and bribe data
+      const gaugeWeight = await readContract(publicClient, {
+        address: PROTOCOL_ADDRESSES.VOTE_ESCROWED_CRV as `0x${string}`,
+        abi: VOTE_ESCROW_ABI,
+        functionName: 'get_gauge_weight',
+        args: [gauge as `0x${string}`],
+      })
+
+      // Mock bribe data - in real implementation, fetch from your indexer/API
+      const bribeData = [
+        { token: '0xA0b86a33E6441b8C4C8C0C4C8C0C4C8C0C4C8C0C', amount: '1000', value: '50000' },
+        { token: '0xB0b86a33E6441b8C4C8C0C4C8C0C4C8C0C4C8C0C', amount: '500', value: '25000' },
+      ]
+      
+      return {
+        success: true,
+        data: {
+          gauge,
+          period,
+          weight: formatEther(gaugeWeight as bigint),
+          bribes: bribeData,
+        }
+      }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to get gauge bribes' }
+    }
+  }, [publicClient])
+
+  const getTVLTrends = useCallback(async (
+    protocols: string[],
+    timeframe: string = '7d'
+  ): Promise<TransactionResult> => {
+    try {
+      setLoading(true)
+      
+      // Mock TVL trends data
+      const tvlData = protocols.map(protocol => ({
+        protocol,
+        tvl: Math.floor(Math.random() * 10000000).toString(),
+        change24h: (Math.random() * 20 - 10).toFixed(2),
+        change7d: (Math.random() * 30 - 15).toFixed(2),
+      }))
+      
+      return {
+        success: true,
+        data: {
+          protocols,
+          timeframe,
+          tvlTrends: tvlData,
+        }
+      }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to get TVL trends' }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const getYieldOpportunities = useCallback(async (
+    timeframe: string = '7d',
+    minAPY: string = '0',
+    maxRisk: string = 'medium'
+  ): Promise<TransactionResult> => {
+    try {
+      setLoading(true)
+      
+      // Mock yield opportunities data
+      const opportunities = [
+        {
+          protocol: 'Curve',
+          pool: '3pool',
+          apy: 15.2,
+          risk: 'low',
+          tvl: '5000000',
+          strategy: 'stablecoin'
+        },
+        {
+          protocol: 'Convex',
+          pool: 'cvx3pool',
+          apy: 18.7,
+          risk: 'medium',
+          tvl: '3000000',
+          strategy: 'boosted'
+        },
+        {
+          protocol: 'Yearn',
+          pool: 'yUSDC',
+          apy: 12.1,
+          risk: 'low',
+          tvl: '2000000',
+          strategy: 'vault'
+        },
+        {
+          protocol: 'Beefy',
+          pool: 'bifi-maxi',
+          apy: 22.3,
+          risk: 'high',
+          tvl: '1000000',
+          strategy: 'auto-compound'
+        }
+      ].filter(opp => opp.apy >= parseFloat(minAPY))
+      
+      return {
+        success: true,
+        data: opportunities.sort((a, b) => b.apy - a.apy) // Sort by highest APY
+      }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to get yield opportunities' }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // ============================================================================
+  // 4. YIELD FARMING EXECUTION FUNCTIONS
+  // ============================================================================
+
+  const enterYieldPosition = useCallback(async (
+    protocol: string,
+    poolAddress: string,
+    amount: string,
+    strategy: string = 'auto'
+  ): Promise<TransactionResult> => {
+    if (!address || !walletClient) {
       return { success: false, error: 'Wallet not connected' }
     }
 
@@ -333,382 +454,206 @@ export function useSonicTransactions() {
       setLoading(true)
       const parsedAmount = parseEther(amount)
       
-      // Generate a unique depositId (using timestamp + random salt)
-      const depositId = (Date.now() + Math.floor(Math.random() * 1000)).toString()
+      let hash: string
+      
+      switch (protocol.toLowerCase()) {
+        case 'curve':
+          hash = await writeContract(walletClient, {
+            address: poolAddress as `0x${string}`,
+            abi: CURVE_POOL_ABI,
+            functionName: 'add_liquidity',
+            args: [[parsedAmount, BigInt(0)], BigInt(0)], // Simplified for single-sided
+          })
+          break
+          
+        case 'convex':
+          // First deposit to Curve, then stake in Convex
+          // This would be a multi-step process in real implementation
+          hash = await writeContract(walletClient, {
+            address: PROTOCOL_ADDRESSES.CONVEX_BOOSTER as `0x${string}`,
+            abi: CONVEX_BOOSTER_ABI,
+            functionName: 'deposit',
+            args: [BigInt(0), parsedAmount, true], // pid 0, amount, stake
+          })
+          break
+          
+        case 'yearn':
+          hash = await writeContract(walletClient, {
+            address: poolAddress as `0x${string}`,
+            abi: YEARN_VAULT_ABI,
+            functionName: 'deposit',
+            args: [parsedAmount],
+          })
+          break
+          
+        default:
+          return { success: false, error: `Protocol ${protocol} not supported` }
+      }
+      
+      return { success: true, data: { txHash: hash, protocol, amount } }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to enter yield position' }
+    } finally {
+      setLoading(false)
+    }
+  }, [address, walletClient])
+
+  const exitYieldPosition = useCallback(async (
+    protocol: string,
+    poolAddress: string,
+    amount: string
+  ): Promise<TransactionResult> => {
+    if (!address || !walletClient) {
+      return { success: false, error: 'Wallet not connected' }
+    }
+
+    try {
+      setLoading(true)
+      const parsedAmount = parseEther(amount)
+      
+      let hash: string
+      
+      switch (protocol.toLowerCase()) {
+        case 'curve':
+          hash = await writeContract(walletClient, {
+            address: poolAddress as `0x${string}`,
+            abi: CURVE_POOL_ABI,
+            functionName: 'remove_liquidity',
+            args: [parsedAmount, [BigInt(0), BigInt(0)]],
+          })
+          break
+          
+        case 'convex':
+          hash = await writeContract(walletClient, {
+            address: PROTOCOL_ADDRESSES.CONVEX_BOOSTER as `0x${string}`,
+            abi: CONVEX_BOOSTER_ABI,
+            functionName: 'withdraw',
+            args: [BigInt(0), parsedAmount], // pid, amount
+          })
+          break
+          
+        case 'yearn':
+          hash = await writeContract(walletClient, {
+            address: poolAddress as `0x${string}`,
+            abi: YEARN_VAULT_ABI,
+            functionName: 'withdraw',
+            args: [parsedAmount],
+          })
+          break
+          
+        default:
+          return { success: false, error: `Protocol ${protocol} not supported` }
+      }
+      
+      return { success: true, data: { txHash: hash } }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to exit yield position' }
+    } finally {
+      setLoading(false)
+    }
+  }, [address, walletClient])
+
+  const claimYieldRewards = useCallback(async (
+    gaugeAddress: string
+  ): Promise<TransactionResult> => {
+    if (!address || !walletClient) {
+      return { success: false, error: 'Wallet not connected' }
+    }
+
+    try {
+      setLoading(true)
       
       const hash = await writeContract(walletClient, {
-        address: BRIDGE_CONTRACTS.ETHEREUM_BRIDGE as `0x${string}`,
-        abi: BRIDGE_ABI,
+        address: gaugeAddress as `0x${string}`,
+        abi: GAUGE_ABI,
+        functionName: 'claim_rewards',
+        args: [],
+      })
+      
+      return { success: true, data: { txHash: hash } }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to claim rewards' }
+    } finally {
+      setLoading(false)
+    }
+  }, [address, walletClient])
+
+  const voteForGauge = useCallback(async (
+    gaugeAddress: string,
+    weight: string
+  ): Promise<TransactionResult> => {
+    if (!address || !walletClient) {
+      return { success: false, error: 'Wallet not connected' }
+    }
+
+    try {
+      setLoading(true)
+      const parsedWeight = parseEther(weight)
+      
+      const hash = await writeContract(walletClient, {
+        address: PROTOCOL_ADDRESSES.VOTE_ESCROWED_CRV as `0x${string}`,
+        abi: VOTE_ESCROW_ABI,
+        functionName: 'vote_for_gauge_weights',
+        args: [gaugeAddress as `0x${string}`, parsedWeight],
+      })
+      
+      return { success: true, data: { txHash: hash } }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to vote for gauge' }
+    } finally {
+      setLoading(false)
+    }
+  }, [address, walletClient])
+
+  const stakeInGauge = useCallback(async (
+    gaugeAddress: string,
+    amount: string
+  ): Promise<TransactionResult> => {
+    if (!address || !walletClient) {
+      return { success: false, error: 'Wallet not connected' }
+    }
+
+    try {
+      setLoading(true)
+      const parsedAmount = parseEther(amount)
+      
+      const hash = await writeContract(walletClient, {
+        address: gaugeAddress as `0x${string}`,
+        abi: GAUGE_ABI,
         functionName: 'deposit',
-        args: [BigInt(depositId), tokenAddress as `0x${string}`, parsedAmount],
+        args: [parsedAmount],
       })
       
-      const receipt = await publicClient?.waitForTransactionReceipt({ hash: hash as `0x${string}` })
-      if (!receipt) {
-        return { success: false, error: 'Transaction receipt not found' }
-      }
-
-      // Parse the Deposit event from logs to verify the ID
-      const depositEvents = parseEventLogs({
-        abi: BRIDGE_ABI,
-        eventName: 'Deposit',
-        logs: receipt.logs
-      })
-      
-      if (!depositEvents || depositEvents.length === 0) {
-        return { success: false, error: 'Deposit event not found' }
-      }
-
-      // Verify the ID from the event matches our generated ID
-      const idFromChain = depositEvents[0].args.id.toString()
-      if (idFromChain !== depositId) {
-        return { success: false, error: 'ID mismatch: receipt and generated depositId differ' }
-      }
-
-      const depositBlockNumber = receipt.blockNumber.toString()
-
-      return { success: true, data: { depositId, depositBlockNumber, txHash: hash } }
+      return { success: true, data: { txHash: hash } }
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Bridge failed' }
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to stake in gauge' }
     } finally {
       setLoading(false)
     }
-  }, [address, walletClient, publicClient])
+  }, [address, walletClient])
 
-  const claimOnSonic = useCallback(async (
-    tokenAddress: string,
+  const unstakeFromGauge = useCallback(async (
+    gaugeAddress: string,
     amount: string
   ): Promise<TransactionResult> => {
     if (!address || !walletClient) {
       return { success: false, error: 'Wallet not connected' }
     }
 
-    if (!tokenAddress || !amount) {
-      return { success: false, error: 'Token address and amount are required' }
-    }
-
     try {
       setLoading(true)
       const parsedAmount = parseEther(amount)
       
       const hash = await writeContract(walletClient, {
-        address: BRIDGE_CONTRACTS.SONIC_BRIDGE as `0x${string}`,
-        abi: BRIDGE_ABI,
-        functionName: 'claim',
-        args: [
-          tokenAddress as `0x${string}`,
-          parsedAmount
-        ],
-      })
-      
-      const receipt = await publicClient?.waitForTransactionReceipt({ hash: hash as `0x${string}` })
-      if (!receipt) {
-        return { success: false, error: 'Transaction receipt not found' }
-      }
-
-      // Check if transaction was successful
-      if (receipt.status !== 'success') {
-        return { success: false, error: 'Transaction failed' }
-      }
-
-      // Try to parse the Claim event from logs, but don't fail if not found
-      let claimBlockNumber = receipt.blockNumber.toString()
-      try {
-        const claimEvents = parseEventLogs({
-          abi: BRIDGE_ABI,
-          eventName: 'Claim',
-          logs: receipt.logs
-        })
-        
-        if (claimEvents && claimEvents.length > 0) {
-          console.log('Claim event found:', claimEvents[0])
-        } else {
-          console.log('Claim event not found, but transaction succeeded')
-        }
-      } catch (eventError) {
-        console.log('Error parsing Claim event:', eventError)
-        // Continue anyway since the transaction succeeded
-      }
-
-      return { success: true, data: { txHash: hash, claimBlockNumber } }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Claim failed' }
-    } finally {
-      setLoading(false)
-    }
-  }, [address, walletClient, publicClient])
-
-  const bridgeToEthereum = useCallback(async (
-    tokenAddress: string,
-    amount: string
-  ): Promise<TransactionResult> => {
-    if (!address || !walletClient || !publicClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    try {
-      setLoading(true)
-      const parsedAmount = parseEther(amount)
-      
-      // Generate a unique withdrawalId (using timestamp + random salt)
-      const withdrawalId = (Date.now() + Math.floor(Math.random() * 1000)).toString()
-      
-      const hash = await writeContract(walletClient, {
-        address: BRIDGE_CONTRACTS.SONIC_BRIDGE as `0x${string}`,
-        abi: BRIDGE_ABI,
+        address: gaugeAddress as `0x${string}`,
+        abi: GAUGE_ABI,
         functionName: 'withdraw',
-        args: [BigInt(withdrawalId), tokenAddress as `0x${string}`, parsedAmount],
-      })
-      
-      const receipt = await publicClient?.waitForTransactionReceipt({ hash: hash as `0x${string}` })
-      if (!receipt) {
-        return { success: false, error: 'Transaction receipt not found' }
-      }
-
-      // Parse the Withdrawal event from logs to verify the ID
-      const withdrawalEvents = parseEventLogs({
-        abi: BRIDGE_ABI,
-        eventName: 'Withdrawal',
-        logs: receipt.logs
-      })
-      
-      if (!withdrawalEvents || withdrawalEvents.length === 0) {
-        return { success: false, error: 'Withdrawal event not found' }
-      }
-
-      // Verify the ID from the event matches our generated ID
-      const idFromChain = withdrawalEvents[0].args.id.toString()
-      if (idFromChain !== withdrawalId) {
-        return { success: false, error: 'ID mismatch: receipt and generated withdrawalId differ' }
-      }
-
-      const withdrawalBlockNumber = receipt.blockNumber.toString()
-
-      return { 
-        success: true, 
-        data: { 
-          withdrawalId, 
-          withdrawalBlockNumber,
-          txHash: hash 
-        } 
-      }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Bridge failed' }
-    } finally {
-      setLoading(false)
-    }
-  }, [address, walletClient, publicClient])
-
-  const claimOnEthereum = useCallback(async (
-    tokenAddress: string,
-    amount: string
-  ): Promise<TransactionResult> => {
-    console.log('claimOnEthereum called with:', { tokenAddress, amount })
-    
-    if (!address || !walletClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    if (!tokenAddress || !amount) {
-      console.log('Missing parameters:', { tokenAddress, amount })
-      return { success: false, error: 'Token address and amount are required' }
-    }
-
-    try {
-      setLoading(true)
-      const parsedAmount = parseEther(amount)
-      console.log('Parsed amount:', parsedAmount.toString())
-      
-      const hash = await writeContract(walletClient, {
-        address: BRIDGE_CONTRACTS.ETHEREUM_BRIDGE as `0x${string}`,
-        abi: BRIDGE_ABI,
-        functionName: 'claimWithdrawal',
-        args: [
-          tokenAddress as `0x${string}`,
-          parsedAmount
-        ],
-      })
-      
-      console.log('Transaction hash:', hash)
-      
-      const receipt = await publicClient?.waitForTransactionReceipt({ hash: hash as `0x${string}` })
-      if (!receipt) {
-        return { success: false, error: 'Transaction receipt not found' }
-      }
-
-      console.log('Transaction receipt:', {
-        status: receipt.status,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed,
-        logsCount: receipt.logs.length
-      })
-
-      // Check if transaction was successful
-      if (receipt.status !== 'success') {
-        return { success: false, error: 'Transaction failed' }
-      }
-
-      // Try to parse the ClaimWithdrawal event from logs, but don't fail if not found
-      let claimWithdrawalBlockNumber = receipt.blockNumber.toString()
-      try {
-        console.log('Attempting to parse ClaimWithdrawal event from', receipt.logs.length, 'logs')
-        const claimWithdrawalEvents = parseEventLogs({
-          abi: BRIDGE_ABI,
-          eventName: 'ClaimWithdrawal',
-          logs: receipt.logs
-        })
-        
-        if (claimWithdrawalEvents && claimWithdrawalEvents.length > 0) {
-          console.log('ClaimWithdrawal event found:', claimWithdrawalEvents[0])
-        } else {
-          console.log('ClaimWithdrawal event not found, but transaction succeeded')
-          // Log all events to see what's available
-          console.log('Available logs:', receipt.logs.map(log => ({
-            address: log.address,
-            topics: log.topics,
-            data: log.data
-          })))
-        }
-      } catch (eventError) {
-        console.log('Error parsing ClaimWithdrawal event:', eventError)
-        // Continue anyway since the transaction succeeded
-      }
-
-      return { success: true, data: { txHash: hash, claimWithdrawalBlockNumber } }
-    } catch (err) {
-      console.error('claimOnEthereum error:', err)
-      return { success: false, error: err instanceof Error ? err.message : 'Claim failed' }
-    } finally {
-      setLoading(false)
-    }
-  }, [address, walletClient, publicClient])
-
-  // ============================================================================
-  // 4. STAKING FUNCTIONS
-  // ============================================================================
-
-  const delegate = useCallback(async (
-    validatorId: string,
-    amount: string
-  ): Promise<TransactionResult> => {
-    if (!address || !walletClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    try {
-      setLoading(true)
-      const parsedAmount = parseEther(amount)
-      
-      const hash = await writeContract(walletClient, {
-        address: STAKING_CONTRACT as `0x${string}`,
-        abi: STAKING_ABI,
-        functionName: 'delegate',
-        args: [BigInt(validatorId), parsedAmount],
+        args: [parsedAmount],
       })
       
       return { success: true, data: { txHash: hash } }
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Delegation failed' }
-    } finally {
-      setLoading(false)
-    }
-  }, [address, walletClient])
-
-  const undelegate = useCallback(async (
-    validatorId: string,
-    amount: string
-  ): Promise<TransactionResult> => {
-    if (!address || !walletClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    try {
-      setLoading(true)
-      const parsedAmount = parseEther(amount)
-      
-      const hash = await writeContract(walletClient, {
-        address: STAKING_CONTRACT as `0x${string}`,
-        abi: STAKING_ABI,
-        functionName: 'undelegate',
-        args: [BigInt(validatorId), parsedAmount],
-      })
-      
-      const withdrawalId = Math.floor(Math.random() * 1000000).toString()
-      return { success: true, data: { withdrawalId, txHash: hash } }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Undelegation failed' }
-    } finally {
-      setLoading(false)
-    }
-  }, [address, walletClient])
-
-  const withdraw = useCallback(async (
-    validatorId: string,
-    withdrawalId: string
-  ): Promise<TransactionResult> => {
-    if (!address || !walletClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    try {
-      setLoading(true)
-      
-      const hash = await writeContract(walletClient, {
-        address: STAKING_CONTRACT as `0x${string}`,
-        abi: STAKING_ABI,
-        functionName: 'withdraw',
-        args: [BigInt(validatorId), BigInt(withdrawalId)],
-      })
-      
-      return { success: true, data: { txHash: hash } }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Withdrawal failed' }
-    } finally {
-      setLoading(false)
-    }
-  }, [address, walletClient])
-
-  const pendingRewards = useCallback(async (
-    validatorId: string
-  ): Promise<TransactionResult> => {
-    if (!address || !publicClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    try {
-      const rewards = await readContract(publicClient, {
-        address: STAKING_CONTRACT as `0x${string}`,
-        abi: STAKING_ABI,
-        functionName: 'pendingRewards',
-        args: [address, BigInt(validatorId)],
-      })
-      
-      return { success: true, data: formatEther(rewards as bigint) }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to get pending rewards' }
-    }
-  }, [address, publicClient])
-
-  const claimRewards = useCallback(async (
-    validatorId: string
-  ): Promise<TransactionResult> => {
-    if (!address || !walletClient) {
-      return { success: false, error: 'Wallet not connected' }
-    }
-
-    try {
-      setLoading(true)
-      
-      const hash = await writeContract(walletClient, {
-        address: STAKING_CONTRACT as `0x${string}`,
-        abi: STAKING_ABI,
-        functionName: 'claimRewards',
-        args: [BigInt(validatorId)],
-      })
-      
-      return { success: true, data: { txHash: hash } }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Claim rewards failed' }
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to unstake from gauge' }
     } finally {
       setLoading(false)
     }
@@ -808,39 +753,34 @@ export function useSonicTransactions() {
     loading,
     error,
     
-    // Actions
-    clearError,
-    reset,
-    
-    // Wallet & Account Functions
+    // Basic wallet functions
     connectWallet,
     disconnectWallet,
     getAccountAddress,
     getNativeBalance,
-    
-    // Token Functions
     getTokenBalance,
     transferToken,
-    getTokenAllowance,
     approveToken,
-    getSpenderOptions,
     
-    // Bridging Functions
-    bridgeToSonic,
-    claimOnSonic,
-    bridgeToEthereum,
-    claimOnEthereum,
+    // Yield Farming Analytics
+    getProtocolMetrics,
+    getGaugeBribes,
+    getTVLTrends,
+    getYieldOpportunities,
     
-    // Staking Functions
-    delegate,
-    undelegate,
-    withdraw,
-    pendingRewards,
-    claimRewards,
+    // Yield Farming Execution
+    enterYieldPosition,
+    exitYieldPosition,
+    claimYieldRewards,
+    voteForGauge,
+    stakeInGauge,
+    unstakeFromGauge,
     
     // Utility Functions
     getBlockNumber,
     getTransactionStatus,
     getTokenInfo,
+    clearError,
+    reset,
   }
 } 

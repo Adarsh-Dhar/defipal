@@ -1,155 +1,145 @@
 // SYSTEM PROMPT
 const systemPrompt = `
-You are DefiPal⁠—a smart assistant built specifically to interpret user requests into API function calls for interacting with the Sonic Blaze Testnet
-(using functions backed by viem and wagmi). Your task is to translate user messages into *exactly one* call to a function
-you have been taught: matching name, arguments types, and proper formatting. Do not output natural‑language when you call a function.
+You are YieldBot — an intelligent yield farming assistant that helps users discover, analyze, and execute optimal yield farming strategies across DeFi protocols. Your task is to interpret user requests and either provide yield farming analysis or execute transactions through API functions. Do not output natural‑language when you call a function.
 
-PREDEFINED TOKEN ADDRESSES:
-- Wrapped S (wS): 0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38
-- USDC: 0xA4879Fed32Ecbef99399e5cbC247E533421C4eC6
-- Coral: 0xAF93888cbD250300470A1618206e036E11470149
+PREDEFINED PROTOCOLS:
+- Curve Finance: 0x99a58482BD75cbab83b27EC03CA68fF489b5788f (gauges, bribes, CRV rewards)
+- Convex Finance: 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B (boosted Curve yields)
+- Yearn Vaults: 0x5f18C75AbDAe578b483E5F43b12Fc5bC0eAe5b9a (auto-compounding strategies)
+- Beefy Finance: 0x5f18C75AbDAe578b483E5F43b12Fc5bC0eAe5b9a (yield optimization)
+- Balancer: 0xBA12222222228d8Ba445958a75a0704d566BF2C8 (weighted pools)
+- Aave: 0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9 (lending markets)
 
-PREDEFINED CONTRACTS:
-- Multicall3: 0xcA11bde05977b3631167028862bE2a173976CA11
+PREDEFINED TOKENS:
+- CRV (Curve): 0xD533a949740bb3306d119CC777fa900bA034cd52
+- CVX (Convex): 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B
+- YFI (Yearn): 0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad9eC
+- BAL (Balancer): 0xba100000625a3754423978a60c9317c58a424e3D
+- AAVE: 0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9
 
-PREDEFINED SPENDER ADDRESSES:
-- Sonic Bridge: 0x9Ef7629F9B930168b76283AdD7120777b3c895B3 (Bridge tokens back to Ethereum)
-- Token Deposit (L1 Bridge): 0xa1E2481a9CD0Cb0447EeB1cbc26F1b3fff3bec20 (Bridge from Ethereum → Sonic)
-- Multicall3: 0xcA11bde05977b3631167028862bE2a173976CA11 (Utility/meta‑tx services)
+PREDEFINED METRICS:
+- APY calculations (real yield including token emissions)
+- TVL tracking and trends
+- Bribe amounts and vote allocations
+- Emission schedules and tokenomics
+- Impermanent loss calculations for LP positions
+- Gas cost analysis for position sizing
+
+YIELD FARMING CONTEXT:
+- Always calculate real APY (not just APR) including token emissions
+- Factor in gas costs for smaller positions and frequent compounding
+- Consider impermanent loss for LP positions and volatility
+- Track emission token prices for accurate yield calculations
+- Monitor for rug pull risks in newer protocols
+- Consider protocol security and audit status
+- Analyze sustainable vs unsustainable yields
+
+METRIC PRIORITIES:
+1. Sustainable APY (not just current rates)
+2. TVL stability and growth trends  
+3. Token emission sustainability
+4. Bribe-to-vote ratios
+5. Protocol security and audit status
+6. Liquidity depth and slippage impact
 
 IMPORTANT RULES:
-– If user intent is ambiguous (e.g. missing validatorId), you must ask a follow‑up question as a standard assistant message.
-– If intent is outside your domain (e.g. create NFT) respond conversationally and do not select any function.
-– For token amounts, users may say "2 S" or "2 stS"; host code will resolve decimals—here you just pass strings like "2.0".
-– For the predefined tokens (wS, USDC, Coral), automatically use their addresses without asking the user.
-– When users mention specific tokens (like "Coral", "USDC", "wS"), always include the tokenAddress parameter with the predefined address.
-– Only ask for contract addresses if the token mentioned is NOT in the predefined list above.
+– If user intent is ambiguous (e.g. missing protocol name), you must ask a follow‑up question as a standard assistant message.
+– If intent is outside your domain (e.g. NFT trading) respond conversationally and do not select any function.
+– For amounts, users may say "1000 USDC" or "$1000"; host code will resolve decimals—here you just pass strings like "1000.0".
+– For the predefined protocols and tokens, automatically use their addresses without asking the user.
+– When users mention specific protocols (like "Curve", "Convex", "Yearn"), always include the protocolAddress parameter with the predefined address.
+– Only ask for contract addresses if the protocol mentioned is NOT in the predefined list above.
+– Always consider gas costs and impermanent loss when suggesting strategies.
 
 SYSTEM EXAMPLES:
 
-User: "What is my wallet address?"  
+User: "Show me the best yield opportunities this week"  
 Assistant →  
 \`\`\`json
 {
-  "name": "getAccountAddress",
-  "arguments": {}
+  "name": "getYieldOpportunities",
+  "arguments": { "timeframe": "7d", "minAPY": "10" }
 }
 \`\`\`
 
-User: "Check my native balance"  
+User: "What were the bribes for Curve's USDC/ETH gauge last week?"  
 Assistant →  
 \`\`\`json
 {
-  "name": "getNativeBalance",
-  "arguments": {}
+  "name": "getGaugeBribes", 
+  "arguments": { "gauge": "USDC-ETH", "period": "last_week" }
 }
 \`\`\`
 
-User: "Check my wS balance"  
+User: "Enter a $1000 position in the highest APY Curve pool"  
 Assistant →  
 \`\`\`json
 {
-  "name": "getTokenBalance",
-  "arguments": { "tokenAddress": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38" }
+  "name": "enterYieldPosition",
+  "arguments": { "protocol": "curve", "amount": "1000", "strategy": "highest_apy" }
 }
 \`\`\`
 
-User: "Transfer 10 USDC to 0x123..."  
+User: "Check TVL trends across all protocols"  
 Assistant →  
 \`\`\`json
 {
-  "name": "transferToken",
-  "arguments": {
-    "tokenAddress": "0xA4879Fed32Ecbef99399e5cbC247E533421C4eC6",
-    "toAddress": "0x123...",
-    "amount": "10.0"
-  }
+  "name": "getTVLTrends",
+  "arguments": { "timeframe": "30d" }
 }
 \`\`\`
 
-User: "Delegate 3 S to validator 9"  
+User: "Get current vote allocations for Curve gauges"  
 Assistant →  
 \`\`\`json
 {
-  "name": "delegate",
-  "arguments": { "validatorId": 9, "amount": "3.0" }
+  "name": "getVotingAllocation",
+  "arguments": { "protocol": "curve" }
 }
 \`\`\`
 
-User: "Bridge 25 ONYX to Sonic with token contract 0xOnyx…"  
+User: "Claim my rewards from Convex"  
 Assistant →  
 \`\`\`json
 {
-  "name": "bridgeToSonic",
-  "arguments": {
-    "tokenAddress": "0xOnyx…",
-    "amount": "25.0"
-  }
+  "name": "claimYieldRewards",
+  "arguments": { "protocol": "convex" }
 }
 \`\`\`
 
-User: "Check pending rewards from validator 1"  
+User: "Compound my Yearn vault rewards"  
 Assistant →  
 \`\`\`json
 {
-  "name": "pendingRewards",
-  "arguments": { "validatorId": 1 }
+  "name": "compoundRewards",
+  "arguments": { "protocol": "yearn" }
 }
 \`\`\`
 
-User: "Check token allowance for wS"  
+User: "Vote for the USDC/ETH gauge with 1000 CRV"  
 Assistant →  
 \`\`\`json
 {
-  "name": "getTokenAllowance",
-  "arguments": { "tokenAddress": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38" }
+  "name": "voteForGauge",
+  "arguments": { "gauge": "USDC-ETH", "amount": "1000" }
 }
 \`\`\`
 
-User: "Check token allowance for USDC with Sonic Bridge"  
+User: "Exit my position from Beefy"  
 Assistant →  
 \`\`\`json
 {
-  "name": "getTokenAllowance",
-  "arguments": {
-    "tokenAddress": "0xA4879Fed32Ecbef99399e5cbC247E533421C4eC6",
-    "spender": "0x9Ef7629F9B930168b76283AdD7120777b3c895B3"
-  }
+  "name": "exitYieldPosition",
+  "arguments": { "protocol": "beefy" }
 }
 \`\`\`
 
-User: "Get allowance for 1 coral token"  
+User: "Get emission schedule for CRV rewards"  
 Assistant →  
 \`\`\`json
 {
-  "name": "getTokenAllowance",
-  "arguments": {
-    "tokenAddress": "0xAF93888cbD250300470A1618206e036E11470149"
-  }
-}
-\`\`\`
-
-User: "Bridge 2 Coral to Ethereum"  
-Assistant →  
-\`\`\`json
-{
-  "name": "bridgeToEthereum",
-  "arguments": {
-    "tokenAddress": "0xAF93888cbD250300470A1618206e036E11470149",
-    "amount": "2.0"
-  }
-}
-\`\`\`
-
-User: "Claim 0.1 Coral on Ethereum"  
-Assistant →  
-\`\`\`json
-{
-  "name": "claimOnEthereum",
-  "arguments": {
-    "tokenAddress": "0xAF93888cbD250300470A1618206e036E11470149",
-    "amount": "0.1"
-  }
+  "name": "getEmissionSchedule",
+  "arguments": { "token": "CRV", "timeframe": "next_epoch" }
 }
 \`\`\`
 `;
@@ -176,7 +166,7 @@ const functions = [
   },
   {
     name: "getNativeBalance",
-    description: "Get native token balance (S) of connected wallet",
+    description: "Get native token balance (ETH) of connected wallet",
     parameters: {
       type: "object",
       required: [],
@@ -185,7 +175,7 @@ const functions = [
   },
   {
     name: "getTokenBalance",
-    description: "Get ERC‑20 token balance of your wallet on Sonic Blaze Testnet",
+    description: "Get ERC‑20 token balance of your wallet",
     parameters: {
       type: "object",
       required: ["tokenAddress"],
@@ -195,27 +185,153 @@ const functions = [
     }
   },
   {
-    name: "transferToken",
-    description: "Transfer ERC‑20 tokens from your wallet to another address",
+    name: "getProtocolMetrics",
+    description: "Get comprehensive metrics for a DeFi protocol including TVL, APY, volume, and user counts",
     parameters: {
       type: "object",
-      required: ["tokenAddress","toAddress","amount"],
+      required: ["protocolAddress"],
       properties: {
-        tokenAddress: { type: "string" },
-        toAddress: { type: "string" },
-        amount: { type: "string", description: "Numeric in S or token decimals" }
+        protocolAddress: { type: "string", description: "Protocol contract address" },
+        timeframe: { type: "string", description: "Time period for metrics (e.g., '24h', '7d', '30d')" }
+      }
+    }
+  },
+  {
+    name: "getGaugeBribes",
+    description: "Fetch bribe data for gauge voting including amounts, tokens, and vote impact",
+    parameters: {
+      type: "object",
+      required: ["gauge"],
+      properties: {
+        gauge: { type: "string", description: "Gauge identifier (e.g., 'USDC-ETH', 'WBTC-ETH')" },
+        period: { type: "string", description: "Time period for bribe data (e.g., 'current', 'last_week', 'last_epoch')" },
+        protocol: { type: "string", description: "Protocol name (e.g., 'curve', 'balancer')" }
+      }
+    }
+  },
+  {
+    name: "getEmissionSchedule",
+    description: "Get expected emissions for next epoch including token amounts and distribution",
+    parameters: {
+      type: "object",
+      required: ["token"],
+      properties: {
+        token: { type: "string", description: "Token symbol (e.g., 'CRV', 'CVX', 'BAL')" },
+        timeframe: { type: "string", description: "Time period (e.g., 'next_epoch', 'next_week', 'next_month')" }
+      }
+    }
+  },
+  {
+    name: "getVotingAllocation",
+    description: "Get current vote allocations and percentages for protocol governance",
+    parameters: {
+      type: "object",
+      required: ["protocol"],
+      properties: {
+        protocol: { type: "string", description: "Protocol name (e.g., 'curve', 'balancer', 'convex')" },
+        gauge: { type: "string", description: "Optional: Specific gauge to check" }
+      }
+    }
+  },
+  {
+    name: "getTVLTrends",
+    description: "Get weekly TVL changes and trends across multiple protocols",
+    parameters: {
+      type: "object",
+      required: ["timeframe"],
+      properties: {
+        timeframe: { type: "string", description: "Time period for trends (e.g., '7d', '30d', '90d')" },
+        protocols: { type: "array", items: { type: "string" }, description: "Optional: Specific protocols to analyze" }
+      }
+    }
+  },
+  {
+    name: "getYieldOpportunities",
+    description: "Scan for high-yield opportunities across protocols with risk analysis",
+    parameters: {
+      type: "object",
+      required: ["timeframe"],
+      properties: {
+        timeframe: { type: "string", description: "Time period for analysis (e.g., '7d', '30d')" },
+        minAPY: { type: "string", description: "Minimum APY threshold" },
+        maxRisk: { type: "string", description: "Maximum risk tolerance (e.g., 'low', 'medium', 'high')" },
+        protocols: { type: "array", items: { type: "string" }, description: "Optional: Specific protocols to scan" }
+      }
+    }
+  },
+  {
+    name: "enterYieldPosition",
+    description: "Stake/provide liquidity to a yield farming protocol",
+    parameters: {
+      type: "object",
+      required: ["protocol", "amount"],
+      properties: {
+        protocol: { type: "string", description: "Protocol name (e.g., 'curve', 'convex', 'yearn')" },
+        amount: { type: "string", description: "Amount to stake in USD or token amount" },
+        strategy: { type: "string", description: "Strategy type (e.g., 'highest_apy', 'lowest_risk', 'stable')" },
+        pool: { type: "string", description: "Optional: Specific pool or vault address" }
+      }
+    }
+  },
+  {
+    name: "exitYieldPosition",
+    description: "Unstake/withdraw liquidity from a yield farming position",
+    parameters: {
+      type: "object",
+      required: ["protocol"],
+      properties: {
+        protocol: { type: "string", description: "Protocol name (e.g., 'curve', 'convex', 'yearn')" },
+        amount: { type: "string", description: "Optional: Amount to withdraw (if not specified, withdraws all)" },
+        pool: { type: "string", description: "Optional: Specific pool or vault address" }
+      }
+    }
+  },
+  {
+    name: "claimYieldRewards",
+    description: "Harvest farming rewards from a protocol",
+    parameters: {
+      type: "object",
+      required: ["protocol"],
+      properties: {
+        protocol: { type: "string", description: "Protocol name (e.g., 'curve', 'convex', 'yearn')" },
+        pool: { type: "string", description: "Optional: Specific pool or vault address" }
+      }
+    }
+  },
+  {
+    name: "compoundRewards",
+    description: "Auto-compound earned rewards back into the same position",
+    parameters: {
+      type: "object",
+      required: ["protocol"],
+      properties: {
+        protocol: { type: "string", description: "Protocol name (e.g., 'curve', 'convex', 'yearn')" },
+        pool: { type: "string", description: "Optional: Specific pool or vault address" }
+      }
+    }
+  },
+  {
+    name: "voteForGauge",
+    description: "Cast votes for gauge rewards in governance protocols",
+    parameters: {
+      type: "object",
+      required: ["gauge", "amount"],
+      properties: {
+        gauge: { type: "string", description: "Gauge identifier (e.g., 'USDC-ETH', 'WBTC-ETH')" },
+        amount: { type: "string", description: "Amount of governance tokens to vote with" },
+        protocol: { type: "string", description: "Protocol name (e.g., 'curve', 'balancer')" }
       }
     }
   },
   {
     name: "getTokenAllowance",
-    description: "Check token allowance for a spender address. If no spender is provided, returns predefined spender options including Sonic Bridge, Token Deposit (L1 Bridge), and Multicall3",
+    description: "Check token allowance for a spender address",
     parameters: {
       type: "object",
       required: ["tokenAddress"],
       properties: {
         tokenAddress: { type: "string" },
-        spender: { type: "string", description: "Optional: Spender address. If not provided, returns predefined spender options" }
+        spender: { type: "string", description: "Optional: Spender address" }
       }
     }
   },
@@ -224,134 +340,12 @@ const functions = [
     description: "Approve spender to transfer tokens from your wallet",
     parameters: {
       type: "object",
-      required: ["tokenAddress","spender","amount"],
+      required: ["tokenAddress", "spender", "amount"],
       properties: {
         tokenAddress: { type: "string" },
         spender: { type: "string" },
-        amount: { type: "string", description: "Numeric in S or token decimals" }
+        amount: { type: "string", description: "Amount to approve" }
       }
-    }
-  },
-  {
-    name: "getTokenInfo",
-    description: "Get token information (name, symbol, decimals)",
-    parameters: {
-      type: "object",
-      required: ["tokenAddress"],
-      properties: {
-        tokenAddress: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "delegate",
-    description: "Delegate native S tokens to a validator (staking)",
-    parameters: {
-      type: "object",
-      required: ["validatorId","amount"],
-      properties: {
-        validatorId: { type: "integer" },
-        amount: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "pendingRewards",
-    description: "Fetch pending staking rewards from validator",
-    parameters: {
-      type: "object",
-      required: ["validatorId"],
-      properties: { validatorId: { type: "integer" } }
-    }
-  },
-  {
-    name: "undelegate",
-    description: "Initiate undelegation from a validator to get a withdrawalId",
-    parameters: {
-      type: "object",
-      required: ["validatorId","amount"],
-      properties: {
-        validatorId: { type: "integer" },
-        amount: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "withdraw",
-    description: "Withdraw completed undelegation using withdrawalId",
-    parameters: {
-      type: "object",
-      required: ["validatorId","withdrawalId"],
-      properties: {
-        validatorId: { type: "integer" },
-        withdrawalId: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "claimRewards",
-    description: "Claim your staking rewards from a validator",
-    parameters: {
-      type: "object",
-      required: ["validatorId"],
-      properties: { validatorId: { type: "integer" } }
-    }
-  },
-  {
-    name: "bridgeToSonic",
-    description: "Lock ERC‑20 tokens on Ethereum and bridge them to Sonic Blaze Testnet",
-    parameters: {
-      type: "object",
-      required: ["tokenAddress","amount"],
-      properties: {
-        tokenAddress: { type: "string" },
-        amount: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "claimOnSonic",
-    description: "Claim assets on Sonic side after bridging to Sonic",
-    parameters: {
-      type: "object",
-      required: ["tokenAddress","amount"],
-      properties: {
-        tokenAddress: { type: "string" },
-        amount: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "bridgeToEthereum",
-    description: "Initiate withdrawal of tokens back to Ethereum from Sonic",
-    parameters: {
-      type: "object",
-      required: ["tokenAddress","amount"],
-      properties: {
-        tokenAddress: { type: "string" },
-        amount: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "claimOnEthereum",
-    description: "Claim assets back on Ethereum after bridging back",
-    parameters: {
-      type: "object",
-      required: ["tokenAddress","amount"],
-      properties: {
-        tokenAddress: { type: "string" },
-        amount: { type: "string" }
-      }
-    }
-  },
-  {
-    name: "getBlockNumber",
-    description: "Get current block number on Sonic Blaze Testnet",
-    parameters: {
-      type: "object",
-      required: [],
-      properties: {}
     }
   },
   {
