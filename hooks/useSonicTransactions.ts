@@ -6,6 +6,7 @@ import { readContract, writeContract } from 'viem/actions'
 import { CRV_BRIBE_ADDRESS, CRV_BRIBE_ABI } from '@/lib/contracts/crvBribe'
 import { GAUGE_CONTROLLER_ADDRESS, GAUGE_CONTROLLER_ABI } from '@/lib/contracts/gaugeController'
 import { CURVE_POOL_ADDRESS, CURVE_POOL_ABI } from '@/lib/contracts/curvePool'
+import { GAUGE_ADDRESS, GAUGE_ABI } from '@/lib/contracts/gauge'
 
 // ============================================================================
 // TYPES
@@ -86,14 +87,6 @@ const ERC20_ABI = parseAbi([
   'function decimals() view returns (uint8)',
 ])
 
-
-const GAUGE_ABI = parseAbi([
-  'function deposit(uint256 _value) returns (bool)',
-  'function withdraw(uint256 _value) returns (bool)',
-  'function claim_rewards() returns (bool)',
-  'function claimable_reward(address _addr, address _token) view returns (uint256)',
-  'function balanceOf(address _addr) view returns (uint256)',
-])
 
 const CONVEX_BOOSTER_ABI = parseAbi([
   'function deposit(uint256 _pid, uint256 _amount, bool _stake) returns (bool)',
@@ -691,10 +684,10 @@ export function useYieldFarming() {
       setLoading(true)
       
       const hash = await writeContract(walletClient, {
-        address: gaugeAddress as `0x${string}`,
+        address: GAUGE_ADDRESS,
         abi: GAUGE_ABI,
         functionName: 'claim_rewards',
-        args: [],
+        args: [], // Use no-args version to claim for msg.sender
       })
       
       return { success: true, data: { txHash: hash } }
