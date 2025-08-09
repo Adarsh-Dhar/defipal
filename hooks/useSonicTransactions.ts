@@ -1,7 +1,10 @@
 import { useState, useCallback } from 'react'
 import { useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from 'wagmi'
-import { parseEther, formatEther, parseAbi, parseEventLogs } from 'viem'
+import { parseEther, formatEther, parseAbi, parseEventLogs, createPublicClient, http } from 'viem'
+import { mainnet } from 'viem/chains'
 import { readContract, writeContract } from 'viem/actions'
+import { CRV_BRIBE_ADDRESS, CRV_BRIBE_ABI } from '@/lib/contracts/crvBribe'
+import { GAUGE_CONTROLLER_ADDRESS, GAUGE_CONTROLLER_ABI } from '@/lib/contracts/gaugeController'
 
 // ============================================================================
 // TYPES
@@ -131,6 +134,12 @@ export function useYieldFarming() {
   const publicClient = usePublicClient()
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
+
+  // Dedicated Ethereum mainnet client for Curve/Convex/Yearn reads
+  const ethereumClient = createPublicClient({
+    chain: mainnet,
+    transport: http('https://cloudflare-eth.com'),
+  })
 
   // ============================================================================
   // 1. WALLET & ACCOUNT FUNCTIONS
@@ -293,19 +302,26 @@ export function useYieldFarming() {
     try {
       setLoading(true)
       
-      // This would typically call your backend API or multiple RPC calls
-      // For now, showing the structure with mock data
-      const mockMetrics = {
-        protocol,
-        timeframe,
-        tvl: '1000000',
-        apy: '12.5',
-        volume: '500000',
+      const response = await fetch(`/api/protocol/${protocol}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch protocol data')
+      }
+      
+      const { success, data, error } = await response.json()
+      
+      if (!success) {
+        throw new Error(error || 'Failed to get protocol metrics')
       }
       
       return {
         success: true,
-        data: mockMetrics
+        data: {
+          protocol,
+          timeframe,
+          tvl: data.tvl?.toString() || '0',
+          apy: data.apy?.toString() || '0',
+          volume: data.volume?.toString() || '0'
+        }
       }
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Failed to get protocol metrics' }
@@ -318,38 +334,149 @@ export function useYieldFarming() {
     gauge: string,
     period: string = 'current_week'
   ): Promise<TransactionResult> => {
-    if (!publicClient) {
-      return { success: false, error: 'Client not available' }
+    if (!publicClient || !address) {
+      return { success: false, error: 'Client or address not available' }
     }
 
     try {
-      // Get gauge weight and bribe data
-      const gaugeWeight = await readContract(publicClient, {
-        address: PROTOCOL_ADDRESSES.VOTE_ESCROWED_CRV as `0x${string}`,
-        abi: VOTE_ESCROW_ABI,
-        functionName: 'get_gauge_weight',
-        args: [gauge as `0x${string}`],
-      })
+      // Validate gauge address (basic 0x + 40 hex chars)
+      if (!gauge || !/^0x[a-fA-F0-9]{40}$/.test(gauge)) {
+        return { success: false, error: 'Please provide a valid Curve gauge address.' }
+      }
 
-      // Mock bribe data - in real implementation, fetch from your indexer/API
-      const bribeData = [
-        { token: '0xA0b86a33E6441b8C4C8C0C4C8C0C4C8C0C4C8C0C', amount: '1000', value: '50000' },
-        { token: '0xB0b86a33E6441b8C4C8C0C4C8C0C4C8C0C4C8C0C', amount: '500', value: '25000' },
-      ]
-      
+      // 0) Ensure the gauge is registered on GaugeController
+      // try {
+      //   const gaugeType = await readContract(ethereumClient, {
+      //     address: GAUGE_CONTROLLER_ADDRESS as `0x${string}`,
+      //     abi: GAUGE_CONTROLLER_ABI,
+      //     functionName: 'gauge_types',
+      //     args: [gauge as `0x${string}`],
+      //   }) as bigint
+      //   // Curve returns -1 for unknown gauge addresses
+      //   if (gaugeType < BigInt(0)) {
+      //     return { success: false, error: 'Gauge not registered on GaugeController.' }
+      //   }
+      // } catch (_) {
+      //   return { success: false, error: 'Gauge not registered on GaugeController.' }
+      // }
+
+      // 1) Try to get reward tokens for the gauge from the Bribe contract
+      let rewardTokens: string[] = []
+      try {
+        const tokens = await readContract(ethereumClient, {
+          address: CRV_BRIBE_ADDRESS as `0x${string}`,
+          abi: CRV_BRIBE_ABI,
+          functionName: 'rewards_per_gauge',
+          args: [gauge as `0x${string}`],
+        })
+        rewardTokens = tokens as string[]
+      } catch (_) {
+        rewardTokens = []
+      }
+
+      // 2) Determine the active epoch timestamp using active_period(gauge, reward_token)
+      //    ABI indicates two address args; consistent with reward_per_token(gauge, reward_token)
+      let epochTime: bigint
+      if (rewardTokens.length > 0) {
+        try {
+          epochTime = await readContract(ethereumClient, {
+            address: CRV_BRIBE_ADDRESS as `0x${string}`,
+            abi: CRV_BRIBE_ABI,
+            functionName: 'active_period',
+            args: [gauge as `0x${string}`, rewardTokens[0] as `0x${string}`],
+          }) as bigint
+        } catch (_) {
+          // Fallback: align to current week
+          const WEEK_SECONDS = 7 * 24 * 60 * 60
+          const nowSeconds = Math.floor(Date.now() / 1000)
+          epochTime = BigInt(Math.floor(nowSeconds / WEEK_SECONDS) * WEEK_SECONDS)
+        }
+      } else {
+        // Fallback: align to current week
+        const WEEK_SECONDS = 7 * 24 * 60 * 60
+        const nowSeconds = Math.floor(Date.now() / 1000)
+        epochTime = BigInt(Math.floor(nowSeconds / WEEK_SECONDS) * WEEK_SECONDS)
+      }
+
+      // Clamp epoch time to not exceed current week start
+      {
+        const WEEK_SECONDS = 7 * 24 * 60 * 60
+        const nowSeconds = Math.floor(Date.now() / 1000)
+        const nowWeekStart = Math.floor(nowSeconds / WEEK_SECONDS) * WEEK_SECONDS
+        if (epochTime > BigInt(nowWeekStart)) {
+          epochTime = BigInt(nowWeekStart)
+        }
+      }
+
+      // 3) Fetch gauge relative weight from GaugeController using current block (no time arg to avoid reverts)
+      let gaugeRelativeWeight: bigint = BigInt(0)
+      try {
+        gaugeRelativeWeight = await readContract(ethereumClient, {
+        address: GAUGE_CONTROLLER_ADDRESS as `0x${string}`,
+        abi: GAUGE_CONTROLLER_ABI,
+          functionName: 'gauge_relative_weight',
+          args: [gauge as `0x${string}`],
+        }) as bigint
+      } catch (_) {
+        // As a fallback, try time-parameterized version with clamped epoch
+        try {
+          gaugeRelativeWeight = await readContract(ethereumClient, {
+            address: GAUGE_CONTROLLER_ADDRESS as `0x${string}`,
+            abi: GAUGE_CONTROLLER_ABI,
+            functionName: 'gauge_relative_weight',
+            args: [gauge as `0x${string}`, epochTime],
+          }) as bigint
+        } catch {
+          gaugeRelativeWeight = BigInt(0)
+        }
+      }
+
+      // 4) For each reward token, read reward_per_token(gauge, reward_token) and user claimable
+      let bribeData: Array<{ token: string; amount: string; claimable: string; value: string }> = []
+      if (rewardTokens.length > 0) {
+        bribeData = await Promise.all(
+          rewardTokens.map(async (rewardToken: string) => {
+            const [claimable, rewardPerToken] = await Promise.all([
+              readContract(ethereumClient, {
+                address: CRV_BRIBE_ADDRESS as `0x${string}`,
+                abi: CRV_BRIBE_ABI,
+                functionName: 'claimable',
+                args: [address, gauge as `0x${string}`, rewardToken as `0x${string}`],
+              }),
+              readContract(ethereumClient, {
+                address: CRV_BRIBE_ADDRESS as `0x${string}`,
+                abi: CRV_BRIBE_ABI,
+                functionName: 'reward_per_token',
+                args: [gauge as `0x${string}`, rewardToken as `0x${string}`],
+              }),
+            ])
+
+            return {
+              token: rewardToken,
+              amount: (rewardPerToken as bigint).toString(),
+              claimable: (claimable as bigint).toString(),
+              value: ((rewardPerToken as bigint) * (gaugeRelativeWeight as bigint) / BigInt(1e18)).toString(),
+            }
+          })
+        )
+      }
+
       return {
         success: true,
         data: {
           gauge,
           period,
-          weight: formatEther(gaugeWeight as bigint),
+          weight: {
+            relativeWeight: (gaugeRelativeWeight as bigint).toString(),
+          },
           bribes: bribeData,
         }
       }
+
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Failed to get gauge bribes' }
     }
-  }, [publicClient])
+  }, [publicClient, address])
 
   const getTVLTrends = useCallback(async (
     protocols: string[],

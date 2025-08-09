@@ -11,11 +11,17 @@ export default function TrialPage() {
     toAddress: '0x7a39037548C388579266657e1e9037613Ee798F1',
     amount: '0.1',
     spender: '0x086D426f8B653b88a2d6D03051C8b4aB8783Be2b',
-    depositId: '12345',
-    depositBlockNumber: '12345678',
-    withdrawalId: '67890',
-    withdrawalBlockNumber: '87654321',
-    validatorId: '1',
+    // Yield farming + analytics
+    protocol: 'Curve',
+    timeframe: '7d',
+    gaugeAddress: '0xaF01d68714E7eA67f43f08b5947e367126B889b1',
+    period: 'current_week',
+    poolAddress: '0x0000000000000000000000000000000000000000',
+    strategy: 'auto',
+    weight: '100',
+    protocolsList: 'Curve,Convex,Yearn',
+    minAPY: '0',
+    maxRisk: 'medium',
     txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
   })
 
@@ -30,17 +36,19 @@ export default function TrialPage() {
     getNativeBalance,
     getTokenBalance,
     transferToken,
-    getTokenAllowance,
     approveToken,
-    bridgeToSonic,
-    claimOnSonic,
-    bridgeToEthereum,
-    claimOnEthereum,
-    delegate,
-    undelegate,
-    withdraw,
-    pendingRewards,
-    claimRewards,
+    // Analytics
+    getProtocolMetrics,
+    getGaugeBribes,
+    getTVLTrends,
+    getYieldOpportunities,
+    // Yield farming execution
+    enterYieldPosition,
+    exitYieldPosition,
+    claimYieldRewards,
+    voteForGauge,
+    stakeInGauge,
+    unstakeFromGauge,
     getBlockNumber,
     getTransactionStatus,
     getTokenInfo,
@@ -192,35 +200,66 @@ export default function TrialPage() {
                 onChange={(value) => updateInput('spender', value)}
                 placeholder="0x..."
               />
+              {/* Analytics inputs */}
               <InputField
-                label="Deposit ID"
-                value={inputs.depositId}
-                onChange={(value) => updateInput('depositId', value)}
-                placeholder="12345"
+                label="Protocol"
+                value={inputs.protocol}
+                onChange={(value) => updateInput('protocol', value)}
+                placeholder="Curve"
               />
               <InputField
-                label="Deposit Block Number"
-                value={inputs.depositBlockNumber}
-                onChange={(value) => updateInput('depositBlockNumber', value)}
-                placeholder="12345678"
+                label="Timeframe"
+                value={inputs.timeframe}
+                onChange={(value) => updateInput('timeframe', value)}
+                placeholder="7d"
               />
               <InputField
-                label="Withdrawal ID"
-                value={inputs.withdrawalId}
-                onChange={(value) => updateInput('withdrawalId', value)}
-                placeholder="67890"
+                label="Gauge Address"
+                value={inputs.gaugeAddress}
+                onChange={(value) => updateInput('gaugeAddress', value)}
+                placeholder="0x..."
               />
               <InputField
-                label="Withdrawal Block Number"
-                value={inputs.withdrawalBlockNumber}
-                onChange={(value) => updateInput('withdrawalBlockNumber', value)}
-                placeholder="87654321"
+                label="Period"
+                value={inputs.period}
+                onChange={(value) => updateInput('period', value)}
+                placeholder="current_week"
               />
               <InputField
-                label="Validator ID"
-                value={inputs.validatorId}
-                onChange={(value) => updateInput('validatorId', value)}
-                placeholder="1"
+                label="Pool Address"
+                value={inputs.poolAddress}
+                onChange={(value) => updateInput('poolAddress', value)}
+                placeholder="0x..."
+              />
+              <InputField
+                label="Strategy"
+                value={inputs.strategy}
+                onChange={(value) => updateInput('strategy', value)}
+                placeholder="auto"
+              />
+              <InputField
+                label="Weight"
+                value={inputs.weight}
+                onChange={(value) => updateInput('weight', value)}
+                placeholder="100"
+              />
+              <InputField
+                label="Protocols (comma-separated)"
+                value={inputs.protocolsList}
+                onChange={(value) => updateInput('protocolsList', value)}
+                placeholder="Curve,Convex,Yearn"
+              />
+              <InputField
+                label="Min APY"
+                value={inputs.minAPY}
+                onChange={(value) => updateInput('minAPY', value)}
+                placeholder="0"
+              />
+              <InputField
+                label="Max Risk"
+                value={inputs.maxRisk}
+                onChange={(value) => updateInput('maxRisk', value)}
+                placeholder="low | medium | high"
               />
               <InputField
                 label="Transaction Hash"
@@ -292,14 +331,6 @@ export default function TrialPage() {
               </div>
               <div>
                 <FunctionButton
-                  title="Get Token Allowance"
-                  onClick={() => handleFunctionCall('getTokenAllowance', () => getTokenAllowance(inputs.tokenAddress, inputs.spender))}
-                  color="bg-purple-500 hover:bg-purple-600"
-                />
-                <ResultDisplay functionName="getTokenAllowance" />
-              </div>
-              <div>
-                <FunctionButton
                   title="Approve Token"
                   onClick={() => handleFunctionCall('approveToken', () => approveToken(inputs.tokenAddress, inputs.spender, inputs.amount))}
                   color="bg-purple-500 hover:bg-purple-600"
@@ -317,88 +348,96 @@ export default function TrialPage() {
             </div>
           </div>
 
-          {/* Bridging Functions */}
+          {/* Yield Farming Analytics */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Bridging Functions</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Yield Farming Analytics</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <FunctionButton
-                  title="Bridge to Sonic"
-                  onClick={() => handleFunctionCall('bridgeToSonic', () => bridgeToSonic(inputs.tokenAddress, inputs.amount))}
+                  title="Get Protocol Metrics"
+                  onClick={() => handleFunctionCall('getProtocolMetrics', () => getProtocolMetrics(inputs.protocol, inputs.timeframe))}
                   color="bg-orange-500 hover:bg-orange-600"
                 />
-                <ResultDisplay functionName="bridgeToSonic" />
+                <ResultDisplay functionName="getProtocolMetrics" />
               </div>
               <div>
                 <FunctionButton
-                  title="Claim on Sonic"
-                  onClick={() => handleFunctionCall('claimOnSonic', () => claimOnSonic(inputs.tokenAddress, inputs.amount))}
+                  title="Get Gauge Bribes"
+                  onClick={() => handleFunctionCall('getGaugeBribes', () => getGaugeBribes(inputs.gaugeAddress, inputs.period))}
                   color="bg-orange-500 hover:bg-orange-600"
                 />
-                <ResultDisplay functionName="claimOnSonic" />
+                <ResultDisplay functionName="getGaugeBribes" />
               </div>
               <div>
                 <FunctionButton
-                  title="Bridge to Ethereum"
-                  onClick={() => handleFunctionCall('bridgeToEthereum', () => bridgeToEthereum(inputs.tokenAddress, inputs.amount))}
+                  title="Get TVL Trends"
+                  onClick={() => handleFunctionCall('getTVLTrends', () => getTVLTrends(inputs.protocolsList.split(',').map(p => p.trim()).filter(Boolean), inputs.timeframe))}
                   color="bg-orange-500 hover:bg-orange-600"
                 />
-                <ResultDisplay functionName="bridgeToEthereum" />
+                <ResultDisplay functionName="getTVLTrends" />
               </div>
               <div>
                 <FunctionButton
-                  title="Claim on Ethereum"
-                  onClick={() => handleFunctionCall('claimOnEthereum', () => claimOnEthereum(inputs.tokenAddress, inputs.amount))}
+                  title="Get Yield Opportunities"
+                  onClick={() => handleFunctionCall('getYieldOpportunities', () => getYieldOpportunities(inputs.timeframe, inputs.minAPY, inputs.maxRisk))}
                   color="bg-orange-500 hover:bg-orange-600"
                 />
-                <ResultDisplay functionName="claimOnEthereum" />
+                <ResultDisplay functionName="getYieldOpportunities" />
               </div>
             </div>
           </div>
 
-          {/* Staking Functions */}
+          {/* Yield Farming Execution */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Staking Functions</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Yield Farming Execution</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <FunctionButton
-                  title="Delegate"
-                  onClick={() => handleFunctionCall('delegate', () => delegate(inputs.validatorId, inputs.amount))}
+                  title="Enter Yield Position"
+                  onClick={() => handleFunctionCall('enterYieldPosition', () => enterYieldPosition(inputs.protocol, inputs.poolAddress, inputs.amount, inputs.strategy))}
                   color="bg-indigo-500 hover:bg-indigo-600"
                 />
-                <ResultDisplay functionName="delegate" />
+                <ResultDisplay functionName="enterYieldPosition" />
               </div>
               <div>
                 <FunctionButton
-                  title="Undelegate"
-                  onClick={() => handleFunctionCall('undelegate', () => undelegate(inputs.validatorId, inputs.amount))}
+                  title="Exit Yield Position"
+                  onClick={() => handleFunctionCall('exitYieldPosition', () => exitYieldPosition(inputs.protocol, inputs.poolAddress, inputs.amount))}
                   color="bg-indigo-500 hover:bg-indigo-600"
                 />
-                <ResultDisplay functionName="undelegate" />
+                <ResultDisplay functionName="exitYieldPosition" />
               </div>
               <div>
                 <FunctionButton
-                  title="Withdraw"
-                  onClick={() => handleFunctionCall('withdraw', () => withdraw(inputs.validatorId, inputs.withdrawalId))}
+                  title="Claim Yield Rewards"
+                  onClick={() => handleFunctionCall('claimYieldRewards', () => claimYieldRewards(inputs.gaugeAddress))}
                   color="bg-indigo-500 hover:bg-indigo-600"
                 />
-                <ResultDisplay functionName="withdraw" />
+                <ResultDisplay functionName="claimYieldRewards" />
               </div>
               <div>
                 <FunctionButton
-                  title="Pending Rewards"
-                  onClick={() => handleFunctionCall('pendingRewards', () => pendingRewards(inputs.validatorId))}
+                  title="Vote For Gauge"
+                  onClick={() => handleFunctionCall('voteForGauge', () => voteForGauge(inputs.gaugeAddress, inputs.weight))}
                   color="bg-indigo-500 hover:bg-indigo-600"
                 />
-                <ResultDisplay functionName="pendingRewards" />
+                <ResultDisplay functionName="voteForGauge" />
               </div>
               <div>
                 <FunctionButton
-                  title="Claim Rewards"
-                  onClick={() => handleFunctionCall('claimRewards', () => claimRewards(inputs.validatorId))}
+                  title="Stake In Gauge"
+                  onClick={() => handleFunctionCall('stakeInGauge', () => stakeInGauge(inputs.gaugeAddress, inputs.amount))}
                   color="bg-indigo-500 hover:bg-indigo-600"
                 />
-                <ResultDisplay functionName="claimRewards" />
+                <ResultDisplay functionName="stakeInGauge" />
+              </div>
+              <div>
+                <FunctionButton
+                  title="Unstake From Gauge"
+                  onClick={() => handleFunctionCall('unstakeFromGauge', () => unstakeFromGauge(inputs.gaugeAddress, inputs.amount))}
+                  color="bg-indigo-500 hover:bg-indigo-600"
+                />
+                <ResultDisplay functionName="unstakeFromGauge" />
               </div>
             </div>
           </div>
