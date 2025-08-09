@@ -94,12 +94,6 @@ const CONVEX_BOOSTER_ABI = parseAbi([
   'function poolInfo(uint256) view returns (address, address, address, address, address, bool)',
 ])
 
-const VOTE_ESCROW_ABI = parseAbi([
-  'function vote_for_gauge_weights(address _gauge_addr, uint256 _user_weight) returns (bool)',
-  'function get_gauge_weight(address _gauge) view returns (uint256)',
-  'function gauge_relative_weight(address _gauge) view returns (uint256)',
-])
-
 const YEARN_VAULT_ABI = parseAbi([
   'function deposit(uint256 _amount) returns (uint256)',
   'function withdraw(uint256 _shares) returns (uint256)',
@@ -320,6 +314,7 @@ export function useYieldFarming() {
       }
       
       const { success, data, error } = await response.json()
+      console.log("data", data)
       
       if (!success) {
         throw new Error(error || 'Failed to get protocol metrics')
@@ -331,10 +326,15 @@ export function useYieldFarming() {
         success: true,
         data: {
           protocol,
-          timeframe,
+          name: data.name,
+          description: data.description,
+          category: data.category,
+          chain: data.chain,
+          url: data.url,
+          logo: data.logo,
           tvl,
-          apy: data.apy?.toString?.() || '0',
-          volume: data.volume?.toString?.() || '0',
+          audits: data.audits,
+          audit_links: data.audit_links
         },
       }
     } catch (err) {
@@ -357,22 +357,6 @@ export function useYieldFarming() {
       if (!gauge || !/^0x[a-fA-F0-9]{40}$/.test(gauge)) {
         return { success: false, error: 'Please provide a valid Curve gauge address.' }
       }
-
-      // 0) Ensure the gauge is registered on GaugeController
-      // try {
-      //   const gaugeType = await readContract(ethereumClient, {
-      //     address: GAUGE_CONTROLLER_ADDRESS as `0x${string}`,
-      //     abi: GAUGE_CONTROLLER_ABI,
-      //     functionName: 'gauge_types',
-      //     args: [gauge as `0x${string}`],
-      //   }) as bigint
-      //   // Curve returns -1 for unknown gauge addresses
-      //   if (gaugeType < BigInt(0)) {
-      //     return { success: false, error: 'Gauge not registered on GaugeController.' }
-      //   }
-      // } catch (_) {
-      //   return { success: false, error: 'Gauge not registered on GaugeController.' }
-      // }
 
       // 1) Try to get reward tokens for the gauge from the Bribe contract
       let rewardTokens: string[] = []
