@@ -5,6 +5,7 @@ import { mainnet } from 'viem/chains'
 import { readContract, writeContract } from 'viem/actions'
 import { CRV_BRIBE_ADDRESS, CRV_BRIBE_ABI } from '@/lib/contracts/crvBribe'
 import { GAUGE_CONTROLLER_ADDRESS, GAUGE_CONTROLLER_ABI } from '@/lib/contracts/gaugeController'
+import { CURVE_POOL_ADDRESS, CURVE_POOL_ABI } from '@/lib/contracts/curvePool'
 
 // ============================================================================
 // TYPES
@@ -85,14 +86,6 @@ const ERC20_ABI = parseAbi([
   'function decimals() view returns (uint8)',
 ])
 
-// Yield Farming ABIs
-const CURVE_POOL_ABI = parseAbi([
-  'function add_liquidity(uint256[2] amounts, uint256 min_mint_amount) returns (uint256)',
-  'function remove_liquidity(uint256 _amount, uint256[2] min_amounts) returns (uint256[2])',
-  'function get_virtual_price() view returns (uint256)',
-  'function totalSupply() view returns (uint256)',
-  'function balanceOf(address _addr) view returns (uint256)',
-])
 
 const GAUGE_ABI = parseAbi([
   'function deposit(uint256 _value) returns (bool)',
@@ -574,10 +567,9 @@ export function useYieldFarming() {
   // ============================================================================
   // 4. YIELD FARMING EXECUTION FUNCTIONS
   // ============================================================================
-
   const enterYieldPosition = useCallback(async (
     protocol: string,
-    poolAddress: string,
+    poolAddress: string, 
     amount: string,
     strategy: string = 'auto'
   ): Promise<TransactionResult> => {
@@ -594,10 +586,10 @@ export function useYieldFarming() {
       switch (protocol.toLowerCase()) {
         case 'curve':
           hash = await writeContract(walletClient, {
-            address: poolAddress as `0x${string}`,
+            address: CURVE_POOL_ADDRESS as `0x${string}`,
             abi: CURVE_POOL_ABI,
             functionName: 'add_liquidity',
-            args: [[parsedAmount, BigInt(0)], BigInt(0)], // Simplified for single-sided
+            args: [[parsedAmount, BigInt(0)], BigInt(0)],
           })
           break
           
@@ -651,10 +643,10 @@ export function useYieldFarming() {
       switch (protocol.toLowerCase()) {
         case 'curve':
           hash = await writeContract(walletClient, {
-            address: poolAddress as `0x${string}`,
+            address: CURVE_POOL_ADDRESS as `0x${string}`,
             abi: CURVE_POOL_ABI,
-            functionName: 'remove_liquidity',
-            args: [parsedAmount, [BigInt(0), BigInt(0)]],
+            functionName: 'remove_liquidity_one_coin',
+            args: [parsedAmount, BigInt(0), BigInt(0)], // amount, coin index, min amount
           })
           break
           
