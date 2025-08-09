@@ -711,8 +711,8 @@ export function useYieldFarming() {
       const parsedWeight = parseEther(weight)
       
       const hash = await writeContract(walletClient, {
-        address: PROTOCOL_ADDRESSES.VOTE_ESCROWED_CRV as `0x${string}`,
-        abi: VOTE_ESCROW_ABI,
+        address: GAUGE_CONTROLLER_ADDRESS,
+        abi: GAUGE_CONTROLLER_ABI,
         functionName: 'vote_for_gauge_weights',
         args: [gaugeAddress as `0x${string}`, parsedWeight],
       })
@@ -727,7 +727,8 @@ export function useYieldFarming() {
 
   const stakeInGauge = useCallback(async (
     gaugeAddress: string,
-    amount: string
+    amount: string,
+    claimRewards: boolean = false
   ): Promise<TransactionResult> => {
     if (!address || !walletClient) {
       return { success: false, error: 'Wallet not connected' }
@@ -738,10 +739,10 @@ export function useYieldFarming() {
       const parsedAmount = parseEther(amount)
       
       const hash = await writeContract(walletClient, {
-        address: gaugeAddress as `0x${string}`,
+        address: GAUGE_ADDRESS,
         abi: GAUGE_ABI,
         functionName: 'deposit',
-        args: [parsedAmount],
+        args: [parsedAmount, address, claimRewards],
       })
       
       return { success: true, data: { txHash: hash } }
@@ -754,7 +755,8 @@ export function useYieldFarming() {
 
   const unstakeFromGauge = useCallback(async (
     gaugeAddress: string,
-    amount: string
+    amount: string,
+    claimRewards: boolean = false
   ): Promise<TransactionResult> => {
     if (!address || !walletClient) {
       return { success: false, error: 'Wallet not connected' }
@@ -765,10 +767,10 @@ export function useYieldFarming() {
       const parsedAmount = parseEther(amount)
       
       const hash = await writeContract(walletClient, {
-        address: gaugeAddress as `0x${string}`,
+        address: GAUGE_ADDRESS,
         abi: GAUGE_ABI,
         functionName: 'withdraw',
-        args: [parsedAmount],
+        args: [parsedAmount, claimRewards],
       })
       
       return { success: true, data: { txHash: hash } }
