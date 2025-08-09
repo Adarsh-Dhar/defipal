@@ -38,20 +38,11 @@ export default function Home() {
     getNativeBalance,
     getTokenBalance,
     transferToken,
-    getTokenAllowance,
     approveToken,
-    bridgeToSonic,
-    claimOnSonic,
-    bridgeToEthereum,
-    claimOnEthereum,
-    delegate,
-    undelegate,
-    withdraw,
-    pendingRewards,
-    claimRewards,
     getBlockNumber,
     getTransactionStatus,
     getTokenInfo,
+    getProtocolMetrics,
   } = useSonicTransactions()
 
   // Function mapping for executing LLM function calls
@@ -71,33 +62,18 @@ export default function Home() {
         case 'transferToken':
           return await transferToken(args.tokenAddress, args.toAddress, args.amount)
         case 'getTokenAllowance':
-          return await getTokenAllowance(args.tokenAddress, args.spender)
-        case 'approveToken':
           return await approveToken(args.tokenAddress, args.spender, args.amount)
         case 'bridgeToSonic':
-          return await bridgeToSonic(args.tokenAddress, args.amount)
-        case 'claimOnSonic':
-          return await claimOnSonic(args.tokenAddress, args.amount)
-        case 'bridgeToEthereum':
-          return await bridgeToEthereum(args.tokenAddress, args.amount)
-        case 'claimOnEthereum':
-          return await claimOnEthereum(args.tokenAddress, args.amount)
-        case 'delegate':
-          return await delegate(args.validatorId, args.amount)
-        case 'undelegate':
-          return await undelegate(args.validatorId, args.amount)
-        case 'withdraw':
-          return await withdraw(args.validatorId, args.withdrawalId)
-        case 'pendingRewards':
-          return await pendingRewards(args.validatorId)
-        case 'claimRewards':
-          return await claimRewards(args.validatorId)
-        case 'getBlockNumber':
           return await getBlockNumber()
         case 'getTransactionStatus':
           return await getTransactionStatus(args.txHash)
         case 'getTokenInfo':
           return await getTokenInfo(args.tokenAddress)
+        case 'getProtocolMetrics':
+          return await getProtocolMetrics(
+            args.protocol || args.protocolAddress || 'curve',
+            args.timeframe || '7d'
+          )
         default:
           throw new Error(`Unknown function: ${functionName}`)
       }

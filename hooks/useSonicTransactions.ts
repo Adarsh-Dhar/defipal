@@ -784,3 +784,5 @@ export function useYieldFarming() {
     reset,
   }
 } 
+
+export { useYieldFarming as useSonicTransactions } 
