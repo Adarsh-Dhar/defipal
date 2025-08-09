@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log("data", data)
+    console.log("data", data.tvl)
 
     return NextResponse.json(
       { success: true, data },

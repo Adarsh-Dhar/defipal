@@ -19,7 +19,7 @@ export default function TrialPage() {
     poolAddress: '0x0000000000000000000000000000000000000000',
     strategy: 'auto',
     weight: '100',
-    protocolsList: 'Curve,Convex,Yearn',
+    protocolsList: 'Curve',
     minAPY: '0',
     maxRisk: 'medium',
     txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
@@ -371,7 +371,7 @@ export default function TrialPage() {
               <div>
                 <FunctionButton
                   title="Get TVL Trends"
-                  onClick={() => handleFunctionCall('getTVLTrends', () => getTVLTrends(inputs.protocolsList.split(',').map(p => p.trim()).filter(Boolean), inputs.timeframe))}
+                  onClick={() => handleFunctionCall('getTVLTrends', () => getTVLTrends(inputs.protocolsList, inputs.timeframe))}
                   color="bg-orange-500 hover:bg-orange-600"
                 />
                 <ResultDisplay functionName="getTVLTrends" />

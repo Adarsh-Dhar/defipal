@@ -141,6 +141,32 @@ export function useYieldFarming() {
     transport: http('https://cloudflare-eth.com'),
   })
 
+  // ==========================================================================
+  // Helpers
+  // ==========================================================================
+
+  const extractLatestTvl = (apiData: any): string => {
+    try {
+      const series = apiData?.tvl
+      if (Array.isArray(series) && series.length > 0) {
+        const lastPoint = series[series.length - 1]
+        if (typeof lastPoint === 'number') return String(lastPoint)
+        if (lastPoint && typeof lastPoint === 'object') {
+          const value =
+            lastPoint.totalLiquidityUSD ??
+            lastPoint.tvl ??
+            lastPoint.totalLiquidity ??
+            (Array.isArray(lastPoint) ? lastPoint[1] : undefined)
+          return value != null ? String(value) : '0'
+        }
+      }
+      if (typeof apiData?.tvl === 'number') return String(apiData.tvl)
+      return '0'
+    } catch {
+      return '0'
+    }
+  }
+
   // ============================================================================
   // 1. WALLET & ACCOUNT FUNCTIONS
   // ============================================================================
@@ -313,15 +339,17 @@ export function useYieldFarming() {
         throw new Error(error || 'Failed to get protocol metrics')
       }
       
+      const tvl = extractLatestTvl(data)
+
       return {
         success: true,
         data: {
           protocol,
           timeframe,
-          tvl: data.tvl?.toString() || '0',
-          apy: data.apy?.toString() || '0',
-          volume: data.volume?.toString() || '0'
-        }
+          tvl,
+          apy: data.apy?.toString?.() || '0',
+          volume: data.volume?.toString?.() || '0',
+        },
       }
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Failed to get protocol metrics' }
@@ -479,30 +507,33 @@ export function useYieldFarming() {
   }, [publicClient, address])
 
   const getTVLTrends = useCallback(async (
-    protocols: string[],
+    protocols: string,
     timeframe: string = '7d'
   ): Promise<TransactionResult> => {
     try {
       setLoading(true)
       
-      // Mock TVL trends data
-      const tvlData = protocols.map(protocol => ({
-        protocol,
-        tvl: Math.floor(Math.random() * 10000000).toString(),
-        change24h: (Math.random() * 20 - 10).toFixed(2),
-        change7d: (Math.random() * 30 - 15).toFixed(2),
-      }))
+      const response = await fetch(`/api/protocol/${protocols}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch protocol data')
+      }
+      
+      const { success, data, error } = await response.json()
+      
+      if (!success) {
+        throw new Error(error || 'Failed to get protocol metrics')
+      }
+
+      const tvl = extractLatestTvl(data)
       
       return {
         success: true,
         data: {
-          protocols,
-          timeframe,
-          tvlTrends: tvlData,
+          tvl,
         }
       }
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to get TVL trends' }
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to get protocol metrics' }
     } finally {
       setLoading(false)
     }
