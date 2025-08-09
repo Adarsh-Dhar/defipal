@@ -541,52 +541,29 @@ export function useYieldFarming() {
 
   const getYieldOpportunities = useCallback(async (
     timeframe: string = '7d',
-    minAPY: string = '0',
+    minAPY: string = '0', 
     maxRisk: string = 'medium'
   ): Promise<TransactionResult> => {
     try {
       setLoading(true)
+
+      const response = await fetch(`/api/yields?timeframe=${timeframe}&minApy=${minAPY}&maxRisk=${maxRisk}`)
       
-      // Mock yield opportunities data
-      const opportunities = [
-        {
-          protocol: 'Curve',
-          pool: '3pool',
-          apy: 15.2,
-          risk: 'low',
-          tvl: '5000000',
-          strategy: 'stablecoin'
-        },
-        {
-          protocol: 'Convex',
-          pool: 'cvx3pool',
-          apy: 18.7,
-          risk: 'medium',
-          tvl: '3000000',
-          strategy: 'boosted'
-        },
-        {
-          protocol: 'Yearn',
-          pool: 'yUSDC',
-          apy: 12.1,
-          risk: 'low',
-          tvl: '2000000',
-          strategy: 'vault'
-        },
-        {
-          protocol: 'Beefy',
-          pool: 'bifi-maxi',
-          apy: 22.3,
-          risk: 'high',
-          tvl: '1000000',
-          strategy: 'auto-compound'
-        }
-      ].filter(opp => opp.apy >= parseFloat(minAPY))
-      
+      if (!response.ok) {
+        throw new Error('Failed to fetch yield opportunities')
+      }
+
+      const { success, data, error } = await response.json()
+
+      if (!success) {
+        throw new Error(error || 'Failed to get yield opportunities')
+      }
+
       return {
         success: true,
-        data: opportunities.sort((a, b) => b.apy - a.apy) // Sort by highest APY
+        data: data.sort((a: any, b: any) => b.apy - a.apy) // Sort by highest APY
       }
+
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Failed to get yield opportunities' }
     } finally {
