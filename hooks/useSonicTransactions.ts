@@ -125,27 +125,215 @@ export function useYieldFarming() {
   // Helpers
   // ==========================================================================
 
+  /**
+   * Extract TVL data including latest value and full historical series
+   * @param apiData - Raw API response data
+   * @param timeframeDays - Optional filter for last N days
+   * @returns Object with latest TVL value and historical time series
+   */
+          const extractTvlData = (
+          apiData: any,
+          timeframeDays?: number
+        ): { latest: string; history: { timestamp: number; value: number }[] } => {
+          try {
+            console.log("=== extractTvlData Debug ===");
+            console.log("Input apiData:", apiData);
+            console.log("apiData type:", typeof apiData);
+            console.log("apiData keys:", apiData ? Object.keys(apiData) : 'null');
+            
+            // Handle different possible data structures
+            let series = apiData?.tvl;
+            console.log("Initial series (apiData.tvl):", series);
+            
+            // If no tvl field, check for totalLiquidityUSD array directly
+            if (!series && Array.isArray(apiData)) {
+              series = apiData;
+              console.log("Using apiData directly as series (array)");
+            }
+            
+            // Also check if the data itself is the series
+            if (!series && apiData && typeof apiData === 'object') {
+              // Check if it has a data field that might contain the series
+              if (Array.isArray(apiData.data)) {
+                series = apiData.data;
+                console.log("Using apiData.data as series");
+              }
+            }
+            
+            console.log("Final series to process:", series);
+            console.log("Series type:", typeof series);
+            console.log("Is array:", Array.isArray(series));
+            console.log("Series length:", Array.isArray(series) ? series.length : 'not array');
+            
+            let history: { timestamp: number; value: number }[] = [];
+
+            if (Array.isArray(series) && series.length > 0) {
+              console.log("Processing series with length:", series.length);
+              console.log("First few points:", series.slice(0, 3));
+              
+              history = series.map((point, index) => {
+                if (index < 3) console.log(`Processing point ${index}:`, point);
+                
+                if (Array.isArray(point) && point.length >= 2) {
+                  const result = { timestamp: Number(point[0]), value: Number(point[1]) };
+                  if (index < 3) console.log(`Array point result:`, result);
+                  return result;
+                }
+                if (point && typeof point === "object") {
+                  const value =
+                    point.totalLiquidityUSD ??
+                    point.tvl ??
+                    point.totalLiquidity ??
+                    0;
+                  const ts =
+                    point.timestamp ??
+                    point.date ??
+                    (point.time ? Number(point.time) * 1000 : Date.now());
+                  const result = { timestamp: Number(ts), value: Number(value) };
+                  if (index < 3) console.log(`Object point result:`, result);
+                  return result;
+                }
+                const result = { timestamp: Date.now(), value: Number(point) };
+                if (index < 3) console.log(`Fallback point result:`, result);
+                return result;
+              });
+
+              console.log("History after mapping (first 3):", history.slice(0, 3));
+              console.log("Total history length:", history.length);
+
+              // Optional timeframe filtering
+              if (timeframeDays) {
+                // For historical data, take the last N days worth of data points
+                // instead of filtering by absolute time
+                const pointsPerDay = Math.max(1, Math.floor(history.length / 365)); // Approximate points per day
+                const targetPoints = timeframeDays * pointsPerDay;
+                const cutoffIndex = Math.max(0, history.length - targetPoints);
+                
+                if (cutoffIndex > 0) {
+                  history = history.slice(cutoffIndex);
+                  console.log(`Timeframe filtering: taking last ${targetPoints} points (${timeframeDays} days worth)`);
+                } else {
+                  console.log("Timeframe filtering: keeping all data (insufficient for filtering)");
+                }
+              }
+            }
+
+            // Fallback if TVL is just a number
+            if (typeof apiData?.tvl === 'number') {
+              history = [{ timestamp: Date.now(), value: Number(apiData.tvl) }];
+              console.log("Using fallback number TVL");
+            }
+
+            const latest = history.length > 0 ? String(history[history.length - 1].value) : "0";
+            console.log("Final result - latest:", latest, "history length:", history.length);
+            console.log("=== End Debug ===");
+
+            return { latest, history };
+          } catch (error) {
+            console.error("Error in extractTvlData:", error);
+            return { latest: "0", history: [] };
+          }
+        };
+
+  // Keep the old function for backward compatibility, but mark as deprecated
   const extractLatestTvl = (apiData: any): string => {
-    try {
-      const series = apiData?.tvl
-      if (Array.isArray(series) && series.length > 0) {
-        const lastPoint = series[series.length - 1]
-        if (typeof lastPoint === 'number') return String(lastPoint)
-        if (lastPoint && typeof lastPoint === 'object') {
-          const value =
-            lastPoint.totalLiquidityUSD ??
-            lastPoint.tvl ??
-            lastPoint.totalLiquidity ??
-            (Array.isArray(lastPoint) ? lastPoint[1] : undefined)
-          return value != null ? String(value) : '0'
+    return extractTvlData(apiData).latest;
+  }
+
+  /**
+   * Calculate trend metrics from historical TVL data
+   * @param history - Historical TVL data points
+   * @returns Comprehensive trend analysis including changes, volatility, and moving averages
+   */
+  const calculateTrendMetrics = (history: { timestamp: number; value: number }[]): {
+    change24h: number;
+    change7d: number;
+    change30d: number;
+    volatility: number;
+    trend: 'up' | 'down' | 'stable';
+    movingAverage7d: number;
+    movingAverage30d: number;
+  } => {
+    if (history.length < 2) {
+      return {
+        change24h: 0,
+        change7d: 0,
+        change30d: 0,
+        volatility: 0,
+        trend: 'stable',
+        movingAverage7d: 0,
+        movingAverage30d: 0
+      };
+    }
+
+    // Sort by timestamp to ensure chronological order
+    const sortedHistory = [...history].sort((a, b) => a.timestamp - b.timestamp);
+    
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const sevenDays = 7 * oneDay;
+    const thirtyDays = 30 * oneDay;
+    
+    const latest = sortedHistory[sortedHistory.length - 1].value;
+    
+    // Find values at different time points
+    const getValueAtTime = (targetTime: number): number => {
+      const target = sortedHistory.find(h => h.timestamp >= targetTime);
+      return target ? target.value : sortedHistory[0].value;
+    };
+    
+    const value24h = getValueAtTime(now - oneDay);
+    const value7d = getValueAtTime(now - sevenDays);
+    const value30d = getValueAtTime(now - thirtyDays);
+    
+    // Calculate percentage changes
+    const change24h = value24h > 0 ? ((latest - value24h) / value24h) * 100 : 0;
+    const change7d = value7d > 0 ? ((latest - value7d) / value7d) * 100 : 0;
+    const change30d = value30d > 0 ? ((latest - value30d) / value30d) * 100 : 0;
+    
+    // Calculate volatility (standard deviation of daily changes)
+    let volatility = 0;
+    if (sortedHistory.length > 1) {
+      const dailyChanges = [];
+      for (let i = 1; i < sortedHistory.length; i++) {
+        const prev = sortedHistory[i - 1].value;
+        const curr = sortedHistory[i].value;
+        if (prev > 0) {
+          dailyChanges.push(((curr - prev) / prev) * 100);
         }
       }
-      if (typeof apiData?.tvl === 'number') return String(apiData.tvl)
-      return '0'
-    } catch {
-      return '0'
+      
+      if (dailyChanges.length > 0) {
+        const mean = dailyChanges.reduce((sum, change) => sum + change, 0) / dailyChanges.length;
+        const variance = dailyChanges.reduce((sum, change) => sum + Math.pow(change - mean, 2), 0) / dailyChanges.length;
+        volatility = Math.sqrt(variance);
+      }
     }
-  }
+    
+    // Determine trend direction
+    let trend: 'up' | 'down' | 'stable' = 'stable';
+    if (change7d > 5) trend = 'up';
+    else if (change7d < -5) trend = 'down';
+    
+    // Calculate moving averages
+    const movingAverage7d = sortedHistory
+      .filter(h => h.timestamp >= now - sevenDays)
+      .reduce((sum, h) => sum + h.value, 0) / Math.max(1, sortedHistory.filter(h => h.timestamp >= now - sevenDays).length);
+    
+    const movingAverage30d = sortedHistory
+      .filter(h => h.timestamp >= now - thirtyDays)
+      .reduce((sum, h) => sum + h.value, 0) / Math.max(1, sortedHistory.filter(h => h.timestamp >= now - thirtyDays).length);
+    
+    return {
+      change24h,
+      change7d,
+      change30d,
+      volatility,
+      trend,
+      movingAverage7d,
+      movingAverage30d
+    };
+  };
 
   // ============================================================================
   // 1. WALLET & ACCOUNT FUNCTIONS
@@ -320,7 +508,13 @@ export function useYieldFarming() {
         throw new Error(error || 'Failed to get protocol metrics')
       }
       
-      const tvl = extractLatestTvl(data)
+      // Parse timeframe to days for filtering
+      const timeframeDays = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : timeframe === '90d' ? 90 : 7;
+      
+      const tvlData = extractTvlData(data, timeframeDays)
+      
+      // Calculate trend metrics for additional insights
+      const trendMetrics = calculateTrendMetrics(tvlData.history)
 
       return {
         success: true,
@@ -332,7 +526,9 @@ export function useYieldFarming() {
           chain: data.chain,
           url: data.url,
           logo: data.logo,
-          tvl,
+          tvl: tvlData.latest,
+          tvlHistory: tvlData.history,
+          trends: trendMetrics,
           audits: data.audits,
           audit_links: data.audit_links
         },
@@ -494,12 +690,22 @@ export function useYieldFarming() {
         throw new Error(error || 'Failed to get protocol metrics')
       }
 
-      const tvl = extractLatestTvl(data)
+      // Parse timeframe to days for filtering
+      const timeframeDays = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : timeframe === '90d' ? 90 : 7;
+      
+      const tvlData = extractTvlData(data, timeframeDays)
+      
+      // Calculate trend metrics
+      const trendMetrics = calculateTrendMetrics(tvlData.history)
       
       return {
         success: true,
         data: {
-          tvl,
+          protocol: protocols,
+          timeframe,
+          latest: tvlData.latest,
+          history: tvlData.history,
+          trends: trendMetrics
         }
       }
     } catch (err) {
@@ -842,6 +1048,179 @@ export function useYieldFarming() {
   }, [publicClient])
 
   // ============================================================================
+  // 6. YIELD FORECASTING & BRIBE CORRELATION FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Calculate yield forecast based on TVL trends and historical data
+   * @param tvlHistory - Historical TVL data points
+   * @param currentAPY - Current APY percentage
+   * @param bribeMultiplier - Multiplier for bribe effects (default: 1.0)
+   * @returns Forecasted APY with confidence metrics and risk assessment
+   */
+  const calculateYieldForecast = useCallback((
+    tvlHistory: { timestamp: number; value: number }[],
+    currentAPY: number,
+    bribeMultiplier: number = 1.0
+  ): {
+    forecastedAPY: number;
+    confidence: number;
+    factors: string[];
+    riskLevel: 'low' | 'medium' | 'high';
+  } => {
+    if (tvlHistory.length < 7) {
+      return {
+        forecastedAPY: currentAPY,
+        confidence: 0.3,
+        factors: ['Insufficient historical data'],
+        riskLevel: 'high'
+      };
+    }
+
+    // Calculate TVL growth rate
+    const recentValues = tvlHistory.slice(-7); // Last 7 days
+    const growthRate = recentValues.length > 1 
+      ? (recentValues[recentValues.length - 1].value - recentValues[0].value) / recentValues[0].value
+      : 0;
+
+    // Calculate volatility
+    const volatility = calculateTrendMetrics(tvlHistory).volatility;
+    
+    // Forecast APY based on TVL growth and bribe multiplier
+    let forecastedAPY = currentAPY;
+    let confidence = 0.7;
+    const factors: string[] = [];
+    
+    if (growthRate > 0.1) { // 10%+ TVL growth
+      forecastedAPY *= (1 + growthRate * 0.5); // APY increases with TVL growth
+      factors.push('Strong TVL growth trend');
+      confidence += 0.1;
+    } else if (growthRate < -0.05) { // 5%+ TVL decline
+      forecastedAPY *= (1 + growthRate * 0.3); // APY decreases with TVL decline
+      factors.push('TVL declining, potential APY reduction');
+      confidence -= 0.1;
+    }
+    
+    // Apply bribe multiplier
+    if (bribeMultiplier > 1.0) {
+      forecastedAPY *= bribeMultiplier;
+      factors.push(`Bribe multiplier: ${bribeMultiplier.toFixed(2)}x`);
+      confidence += 0.1;
+    }
+    
+    // Adjust for volatility
+    if (volatility > 20) {
+      confidence -= 0.2;
+      factors.push('High volatility - reduced confidence');
+    }
+    
+    // Determine risk level
+    let riskLevel: 'low' | 'medium' | 'high' = 'medium';
+    if (confidence > 0.8 && volatility < 10) riskLevel = 'low';
+    else if (confidence < 0.5 || volatility > 30) riskLevel = 'high';
+    
+    return {
+      forecastedAPY: Math.max(0, forecastedAPY),
+      confidence: Math.min(1, Math.max(0, confidence)),
+      factors,
+      riskLevel
+    };
+  }, []);
+
+  /**
+   * Analyze correlation between TVL changes and bribe effectiveness
+   * @param tvlHistory - Historical TVL data points
+   * @param bribeHistory - Historical bribe data points
+   * @returns Correlation analysis with effectiveness rating and recommendations
+   */
+  const analyzeBribeTVLCorrelation = useCallback((
+    tvlHistory: { timestamp: number; value: number }[],
+    bribeHistory: { timestamp: number; amount: number }[]
+  ): {
+    correlation: number;
+    effectiveness: 'high' | 'medium' | 'low';
+    insights: string[];
+    recommendation: string;
+  } => {
+    if (tvlHistory.length < 10 || bribeHistory.length < 5) {
+      return {
+        correlation: 0,
+        effectiveness: 'low',
+        insights: ['Insufficient data for correlation analysis'],
+        recommendation: 'Collect more data points for accurate analysis'
+      };
+    }
+
+    // Calculate correlation coefficient
+    const tvlChanges: number[] = [];
+    const bribeChanges: number[] = [];
+    
+    for (let i = 1; i < Math.min(tvlHistory.length, bribeHistory.length); i++) {
+      if (tvlHistory[i] && tvlHistory[i-1] && bribeHistory[i] && bribeHistory[i-1]) {
+        const tvlChange = (tvlHistory[i].value - tvlHistory[i-1].value) / tvlHistory[i-1].value;
+        const bribeChange = (bribeHistory[i].amount - bribeHistory[i-1].amount) / Math.max(bribeHistory[i-1].amount, 1);
+        tvlChanges.push(tvlChange);
+        bribeChanges.push(bribeChange);
+      }
+    }
+    
+    // Calculate Pearson correlation
+    let correlation = 0;
+    if (tvlChanges.length > 0) {
+      const meanTvl: number = tvlChanges.reduce((sum: number, val: number) => sum + val, 0) / tvlChanges.length;
+      const meanBribe: number = bribeChanges.reduce((sum: number, val: number) => sum + val, 0) / bribeChanges.length;
+      
+      const numerator: number = tvlChanges.reduce((sum: number, val: number, i: number) => 
+        sum + (val - meanTvl) * (bribeChanges[i] - meanBribe), 0);
+      
+      const denominatorTvl: number = Math.sqrt(tvlChanges.reduce((sum: number, val: number) => 
+        sum + Math.pow(val - meanTvl, 2), 0));
+      const denominatorBribe: number = Math.sqrt(bribeChanges.reduce((sum: number, val: number) => 
+        sum + Math.pow(val - meanBribe, 2), 0));
+      
+      correlation = denominatorTvl * denominatorBribe > 0 
+        ? numerator / (denominatorTvl * denominatorBribe) 
+        : 0;
+    }
+    
+    // Determine effectiveness
+    let effectiveness: 'high' | 'medium' | 'low' = 'medium';
+    if (correlation > 0.7) effectiveness = 'high';
+    else if (correlation < 0.3) effectiveness = 'low';
+    
+    // Generate insights
+    const insights: string[] = [];
+    if (correlation > 0.5) {
+      insights.push('Strong positive correlation between bribes and TVL growth');
+    } else if (correlation < -0.3) {
+      insights.push('Negative correlation - bribes may be driving TVL away');
+    } else {
+      insights.push('Weak correlation - bribes have minimal impact on TVL');
+    }
+    
+    if (Math.abs(correlation) > 0.6) {
+      insights.push('Bribe strategy is highly predictable');
+    }
+    
+    // Generate recommendation
+    let recommendation = 'Maintain current bribe strategy';
+    if (correlation > 0.7) {
+      recommendation = 'Increase bribe amounts to maximize TVL growth';
+    } else if (correlation < 0.2) {
+      recommendation = 'Reconsider bribe strategy - minimal TVL impact';
+    } else if (correlation < -0.3) {
+      recommendation = 'Investigate why bribes are negatively affecting TVL';
+    }
+    
+    return {
+      correlation,
+      effectiveness,
+      insights,
+      recommendation
+    };
+  }, []);
+
+  // ============================================================================
   // CONVENIENCE FUNCTIONS
   // ============================================================================
 
@@ -873,6 +1252,10 @@ export function useYieldFarming() {
     getGaugeBribes,
     getTVLTrends,
     getYieldOpportunities,
+    
+    // Yield Forecasting & Bribe Analysis
+    calculateYieldForecast,
+    analyzeBribeTVLCorrelation,
     
     // Yield Farming Execution
     enterYieldPosition,
