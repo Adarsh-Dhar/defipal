@@ -723,7 +723,7 @@ export function useYieldFarming() {
     try {
       setLoading(true)
 
-      const response = await fetch(`/api/yields?timeframe=${timeframe}&minApy=${minAPY}&maxRisk=${maxRisk}`)
+      const response = await fetch(`/api/yields`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch yield opportunities')
