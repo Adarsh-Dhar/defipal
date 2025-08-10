@@ -25,3 +25,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# curve-stableswap specific ignores
+curve-stableswap/node_modules/
+curve-stableswap/.env
+curve-stableswap/cache/
+curve-stableswap/artifacts/
+curve-stableswap/deployment-*.json
