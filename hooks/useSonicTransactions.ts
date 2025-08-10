@@ -5,7 +5,7 @@ import { mainnet } from 'viem/chains'
 import { readContract, writeContract } from 'viem/actions'
 import { CRV_BRIBE_ADDRESS, CRV_BRIBE_ABI } from '@/lib/contracts/crvBribe'
 import { GAUGE_CONTROLLER_ADDRESS, GAUGE_CONTROLLER_ABI } from '@/lib/contracts/gaugeController'
-import { CURVE_POOL_ADDRESS, CURVE_POOL_ABI } from '@/lib/contracts/curvePool'
+import { CURVE_POOL_ADDRESS, CURVE_POOL_ABI, TOKEN0_ADDRESS, TOKEN1_ADDRESS, TOKEN_ABI } from '@/lib/contracts/curvePool'
 import { GAUGE_ADDRESS, GAUGE_ABI } from '@/lib/contracts/gauge'
 
 // ============================================================================
@@ -768,11 +768,27 @@ export function useYieldFarming() {
       
       switch (protocol.toLowerCase()) {
         case 'curve':
+          // First approve tokens
+          await writeContract(walletClient, {
+            address: TOKEN0_ADDRESS as `0x${string}`,
+            abi: TOKEN_ABI,
+            functionName: 'approve',
+            args: [CURVE_POOL_ADDRESS, parsedAmount]
+          })
+
+          await writeContract(walletClient, {
+            address: TOKEN1_ADDRESS as `0x${string}`, 
+            abi: TOKEN_ABI,
+            functionName: 'approve',
+            args: [CURVE_POOL_ADDRESS, parsedAmount]
+          })
+
+          // Then add liquidity
           hash = await writeContract(walletClient, {
             address: CURVE_POOL_ADDRESS as `0x${string}`,
             abi: CURVE_POOL_ABI,
             functionName: 'add_liquidity',
-            args: [[parsedAmount, BigInt(0)], BigInt(0)],
+            args: [[parsedAmount, parsedAmount], BigInt(0)], // Equal amounts of both tokens
           })
           break
           
