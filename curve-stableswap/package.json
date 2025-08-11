@@ -1,20 +1,17 @@
 {
-  "name": "curve-stableswap",
+  "name": "curve-stableswap-deployment",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Curve StableSwap Pool Deployment",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "npx hardhat compile",
+    "deploy": "npx hardhat run scripts/deploy.js --network sepolia",
+    "deploy-local": "npx hardhat run scripts/deploy.js --network hardhat"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
+  "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
-    "@nomiclabs/hardhat-vyper": "^3.1.0",
-    "dotenv": "^17.2.1",
-    "ethers": "^6.15.0",
-    "hardhat": "^2.26.2"
+    "@nomiclabs/hardhat-vyper": "^3.0.4",
+    "hardhat": "^2.17.0",
+    "ethers": "^5.7.2",
+    "dotenv": "^16.3.1"
   }
 }
